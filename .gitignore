@@ -1,0 +1,6 @@
+.python-version
+.idea
+dist
+vaultmanager.egg-info
+__pycache__/
+*.py[cod]
