@@ -2,7 +2,6 @@
 import os
 import inspect
 try:
-    print("Not installed")
     from VaultManager import VaultManager
 except ImportError:
     from vaultmanager.VaultManager import VaultManager
