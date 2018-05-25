@@ -21,6 +21,11 @@ class VaultManager:
         self.initialize_arg_parser()
 
     def set_logger(self):
+        """
+        Initialize logger
+
+        :return: logger instance
+        """
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.ERROR)
         #formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -31,6 +36,12 @@ class VaultManager:
         self.logger.addHandler(stream_handler)
 
     def change_log_level(self, log_level=None):
+        """
+        Change the log level of all handlers
+
+        :param log_level: log level
+        :type log_level: logging.(CRITICAL|ERROR|WARNING|INFO|DEBUG)
+        """
         self.logger.debug("Changing log level to " + str(log_level))
         if self.parsed_arguments.verbose == 1:
             log_level = logging.WARNING
@@ -44,10 +55,14 @@ class VaultManager:
         self.logger.debug("Log level changed to " + str(log_level))
 
     def initialize_arg_parser(self):
+        """
+        Initialize parser and subparsers then launch the specified module
+        """
         self.logger.debug("initializing arguments parser")
         self.arg_parser = argparse.ArgumentParser(description="Vault configuration manager")
         self.arg_parser.add_argument('-v', '--verbose', action='count', help="enable verbose mode")
         subparsers = self.arg_parser.add_subparsers()
+        # Fetch the list of all available submodules
         self.modules = dict()
         for file in glob.glob(os.path.join(self.module_path, 'modules', 'VaultManager*.py')):
             self.logger.debug("Module " + file + " found")
@@ -61,4 +76,5 @@ class VaultManager:
         self.parsed_arguments = self.arg_parser.parse_args()
         if self.parsed_arguments.verbose:
             self.change_log_level(self.parsed_arguments.verbose)
+        # Start the specified module
         self.modules[module_short_name].run(self.parsed_arguments)
