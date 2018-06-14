@@ -1,4 +1,8 @@
 CHANGES
 =======
 
+* add policies module
+* add some comments
+* add verbosity granularity
+* add submodule loader and packaging
 * Initial empty repository

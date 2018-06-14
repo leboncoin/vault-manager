@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import argparse
 import logging
@@ -67,7 +68,7 @@ class VaultManager:
         for file in glob.glob(os.path.join(self.module_path, 'modules', 'VaultManager*.py')):
             self.logger.debug("Module " + file + " found")
             module_name = os.path.splitext(os.path.basename(file))[0]
-            module_short_name = module_name.replace("vaultmanager", "").lower()
+            module_short_name = module_name.replace("VaultManager", "").lower()
             try:
                 module = getattr(importlib.import_module('modules.' + module_name), module_name)
             except ImportError:
@@ -76,5 +77,10 @@ class VaultManager:
         self.parsed_arguments = self.arg_parser.parse_args()
         if self.parsed_arguments.verbose:
             self.change_log_level(self.parsed_arguments.verbose)
-        # Start the specified module
-        self.modules[module_short_name].run(self.parsed_arguments)
+        self.logger.debug("Parsed arguments: " + str(self.parsed_arguments))
+        if len(sys.argv) <= 2:
+            print(self.arg_parser.print_help())
+        else:
+            # Start the specified module
+            print(self.modules)
+            self.modules[self.parsed_arguments.module_name].run(self.arg_parser, self.parsed_arguments)
