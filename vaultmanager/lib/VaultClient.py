@@ -43,7 +43,9 @@ class VaultClient:
         if "VAULT_TOKEN" in os.environ:
             self.vault_client.token = os.environ["VAULT_TOKEN"]
         else:
-            self.vault_client.token = getpass.getpass("Please enter token with correct rights: ")
+            self.vault_client.token = getpass.getpass(
+                "Please enter token with correct rights: ")
+        self.is_authenticated()
 
     def is_authenticated(self):
         """
@@ -103,3 +105,15 @@ class VaultClient:
         self.logger.debug("Get policy " + policy_name)
         policy_content = self.vault_client.get_policy(policy_name)
         return policy_content
+
+    def read_secret(self, secret_path):
+        """
+        Read and return a secret
+
+        :param secret_path: secret path
+        :type secret_path: str
+        :return: str
+        """
+        self.logger.debug("Reading secret '" + secret_path + "'")
+        secret = self.vault_client.read(secret_path)
+        return secret
