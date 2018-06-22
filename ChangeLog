@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* add ldap module
 * add policies module
 * add some comments
 * add verbosity granularity
