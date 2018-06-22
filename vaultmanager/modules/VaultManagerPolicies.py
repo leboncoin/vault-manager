@@ -39,7 +39,6 @@ class VaultManagerPolicies:
         self.logger.debug("Initializing subparser")
         self.module_name = \
             self.__class__.__name__.replace("VaultManager", "").lower()
-        print(self.module_name)
         self.subparser = \
             subparsers.add_parser(self.module_name,
                                   help=self.module_name + ' management')

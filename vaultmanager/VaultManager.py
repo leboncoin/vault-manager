@@ -82,5 +82,4 @@ class VaultManager:
             print(self.arg_parser.print_help())
         else:
             # Start the specified module
-            print(self.modules)
             self.modules[self.parsed_arguments.module_name].run(self.arg_parser, self.parsed_arguments)
