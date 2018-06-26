@@ -28,11 +28,11 @@ class VaultManager:
         :return: logger instance
         """
         self.logger = logging.getLogger()
-        self.logger.setLevel(logging.ERROR)
+        self.logger.setLevel(logging.INFO)
         #formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
         stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.ERROR)
+        stream_handler.setLevel(logging.INFO)
         stream_handler.setFormatter(formatter)
         self.logger.addHandler(stream_handler)
 
@@ -44,11 +44,7 @@ class VaultManager:
         :type log_level: logging.(CRITICAL|ERROR|WARNING|INFO|DEBUG)
         """
         self.logger.debug("Changing log level to " + str(log_level))
-        if self.parsed_arguments.verbose == 1:
-            log_level = logging.WARNING
-        elif self.parsed_arguments.verbose == 2:
-            log_level = logging.INFO
-        elif self.parsed_arguments.verbose == 3:
+        if self.parsed_arguments.verbose >= 1:
             log_level = logging.DEBUG
         self.logger.setLevel(log_level)
         for handler in self.logger.handlers:

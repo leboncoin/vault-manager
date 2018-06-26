@@ -1,0 +1,24 @@
+---
+general:
+  ldap:
+    server: ldap://10.4.55.41
+    username: <LDAP_username>
+    password: <LDAP_password_Vault_path>
+    group_dn: OU=<group1>,OU=<group2>,DC=<company>
+    user_dn: OU=<users1>,OU=<users2>,DC=<company>
+  group:
+    default_policy: group_policy.hcl
+  user:
+    default_policy: user_policy.hcl
+
+# By default no groups are added
+# All have to be specified
+groups:
+  groups_to_add:
+    - <LDAP_group_name_1>
+    - <LDAP_group_name_2>
+
+# By default all users are added
+# Each user to exclude have to be listed below
+users:
+  users_to_exclude:
