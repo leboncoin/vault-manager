@@ -51,9 +51,11 @@ class VaultManagerLDAP:
         self.subparser = \
             subparsers.add_parser(self.module_name,
                                   help=self.module_name + ' management')
-        self.subparser.add_argument("--create",
-                                    help="Create policies from LDAP groups and users",
-                                    action='store_true')
+        self.subparser.add_argument(
+            "--create",
+            action='store_true',
+            help="Create policies from LDAP groups and users"
+        )
         self.subparser.set_defaults(module_name=self.module_name)
 
     def get_subparser(self):
@@ -81,21 +83,24 @@ class VaultManagerLDAP:
         :return: bool
         """
         self.logger.debug("Checking env variables")
-        needed_env_vars = ["VAULT_ADDR", "VAULT_TOKEN", "VAULT_POLICIES"]
+        needed_env_vars = ["VAULT_ADDR", "VAULT_TOKEN", "VAULT_CONFIG"]
         if not all(env_var in os.environ for env_var in needed_env_vars):
             self.logger.critical("The following env vars must be set")
             self.logger.critical(str(needed_env_vars))
             return False
         self.logger.debug("All env vars are set")
-        if not os.path.isdir(os.environ["VAULT_POLICIES"]):
+        if not os.path.isdir(os.environ["VAULT_CONFIG"]):
             self.logger.critical(
-                os.environ["VAULT_POLICIES"] + " is not a valid folder")
+                os.environ["VAULT_CONFIG"] + " is not a valid folder")
             return False
         return True
 
     def read_configuration(self):
+        """
+        Read the configuration file
+        """
         self.logger.debug("Reading configuration")
-        with open(os.path.join(os.environ["VAULT_POLICIES"], "policies.yml"),
+        with open(os.path.join(self.policies_folder, "policies.yml"),
                   'r') as fd:
             try:
                 self.conf = yaml.load(fd)
@@ -106,11 +111,17 @@ class VaultManagerLDAP:
         return True
 
     def get_ldap_data(self):
+        """
+        Fetch users and groups from LDAP
+        """
         self.logger.info("Reading LDAP data")
         # base_logger, server, user, password, group_dn, user_dn
-        ldap_password = \
-        self.vault_client.read_secret(self.conf["general"]["ldap"]["password"])[
-            "data"]["password"]
+        try:
+            ldap_password = self.vault_client.read_secret(
+                self.conf["general"]["ldap"]["password"]
+            )["data"]["password"]
+        except TypeError as e:
+            raise Exception("LDAP password does not exists in Vault")
         ldap_reader = LDAPReader(self.base_logger,
                                  self.conf["general"]["ldap"]["server"],
                                  self.conf["general"]["ldap"]["username"],
@@ -124,6 +135,9 @@ class VaultManagerLDAP:
         return True
 
     def create_groups_policies(self):
+        """
+        Create a policy for each group
+        """
         self.logger.info("Creating groups policies")
         ldap_groups = list(sorted(set([group for user in self.ldap_users for group in self.ldap_users[user]])))
         for read_group in self.conf["groups"]["groups_to_add"]:
@@ -133,7 +147,11 @@ class VaultManagerLDAP:
                                     "groups. Default conf file. "
                                     "The default group policy will be created "
                                     "anyway.")
-        with open(os.path.join(self.policies_folder, self.conf["general"]["group"]["default_policy"]), 'r') as fd:
+        with open(
+                os.path.join(
+                    self.policies_folder,
+                    self.conf["general"]["group"]["default_policy"]
+                ), 'r') as fd:
             default_policy = fd.read()
         for group in self.conf["groups"]["groups_to_add"]:
             policy_file = os.path.join(self.group_policies_folder,
@@ -141,15 +159,18 @@ class VaultManagerLDAP:
             self.group_policies_to_create.append(policy_file)
             if os.path.isfile(policy_file):
                 self.logger.info(
-                    "Policy " + os.path.join(self.policies_folder,
-                                             group + ".hcl") +
-                    " already exists and will not be overwritten")
+                    "Policy for group " + group +
+                    " already exists and will not be overwritten"
+                )
             else:
                 with open(policy_file, 'w+') as fd:
                     fd.write(default_policy.replace("{{GROUP_NAME}}", group))
                     self.logger.info("Default policy for " + group + " written")
 
     def create_users_policies(self):
+        """
+        Create policies for each LDAP user
+        """
         self.logger.info("Creating user policies")
         with open(os.path.join(self.policies_folder, self.conf["general"]["user"]["default_policy"]), 'r') as fd:
             default_policy = fd.read()
@@ -161,25 +182,28 @@ class VaultManagerLDAP:
                 self.user_policies_to_create.append(policy_file)
                 if os.path.isfile(policy_file):
                     self.logger.info(
-                        "Configuration for user " + user +
+                        "Policy for user " + user +
                         " already exists and will not be overwritten")
                 else:
                     with open(policy_file, 'w+') as fd:
                         fd.write(default_policy.replace("{{USER_NAME}}", user))
                         self.logger.info(
-                            "Configuration for user " + user + " created")
+                            "Policy for user " + user + " created")
 
     def deleting_previous_policies(self):
+        """
+        Deleting policies of non existing LDAP users
+        """
         self.logger.debug("Deleting policies of previously existing LDAP users")
         for file in os.listdir(self.group_policies_folder):
             policy_path = os.path.join(self.group_policies_folder, file)
             if policy_path not in self.group_policies_to_create:
-                self.logger.debug("Deleting group policy: " + policy_path)
+                self.logger.info("Deleting group policy: " + policy_path)
                 os.remove(policy_path)
         for file in os.listdir(self.user_policies_folder):
             policy_path = os.path.join(self.user_policies_folder, file)
             if policy_path not in self.user_policies_to_create:
-                self.logger.debug("Deleting user policy: " + policy_path)
+                self.logger.info("Deleting user policy: " + policy_path)
                 os.remove(policy_path)
 
     def run(self, arg_parser, parsed_args):
@@ -198,7 +222,8 @@ class VaultManagerLDAP:
             return False
         if not self.check_env_vars():
             return False
-        self.policies_folder = os.environ["VAULT_POLICIES"]
+        self.policies_folder = os.path.join(os.environ["VAULT_CONFIG"],
+                                            "policies")
         self.user_policies_folder = os.path.join(self.policies_folder, "user")
         self.group_policies_folder = os.path.join(self.policies_folder, "group")
         self.group_policies_to_create = []
@@ -208,6 +233,7 @@ class VaultManagerLDAP:
         self.vault_client = VaultClient(self.base_logger)
         self.vault_client.authenticate()
         if self.parsed_args.create:
+            self.logger.info("Creating LDAP policies")
             if not self.get_ldap_data():
                 return False
             self.create_groups_policies()

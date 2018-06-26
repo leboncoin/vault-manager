@@ -1,9 +1,13 @@
 import logging
-import argparse
+try:
+    from lib.VaultClient import VaultClient
+except ImportError:
+    from vaultmanager.lib.VaultClient import VaultClient
 
 
 class VaultManagerModule:
     logger = None
+    base_logger = None
     subparser = None
     parsed_args = None
     arg_parser = None
@@ -16,8 +20,9 @@ class VaultManagerModule:
         :param subparsers: list of all subparsers
         :type subparsers: argparse.ArgumentParser.add_subparsers()
         """
+        self.base_logger = base_logger
         self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
-        self.logger.debug("Initializing VaultManagerModule")
+        self.logger.debug("Initializing VaultManagerLDAP")
         self.initialize_subparser(subparsers)
 
     def initialize_subparser(self, subparsers):
@@ -34,16 +39,9 @@ class VaultManagerModule:
         #self.subparser.add_argument("--pull", help="Pull local policies to Vault", nargs=1)
         self.subparser.set_defaults(module_name=self.module_name)
 
-    def get_subparser(self):
-        """
-        Module subparser getter
-
-        :return: argparse.ArgumentParser.add_subparsers().add_parser()
-        """
-        return self.subparser
-
     def run(self, arg_parser, parsed_args):
         """
+        Module entry point
 
         :param parsed_args: Arguments parsed fir this module
         :type parsed_args: argparse.ArgumentParser.parse_args()

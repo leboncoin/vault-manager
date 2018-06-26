@@ -117,3 +117,45 @@ class VaultClient:
         self.logger.debug("Reading secret '" + secret_path + "'")
         secret = self.vault_client.read(secret_path)
         return secret
+
+    def audit_list(self):
+        """
+        List and return audit devices
+
+        :return: dict
+        """
+        self.logger.debug("Listing audit devices")
+        raw = self.vault_client.list_audit_backends()
+        return raw["data"]
+
+    def audit_enable(self, audit_type, path, description, options):
+        """
+        Enable a new audit device
+
+        :param audit_type: audit device type
+        :type audit_type: str
+        :param path: mounting point
+        :type path: str
+        :param description: audit device description
+        :type description: str
+        :param options: options needed by the audit device type
+        :type options: dict
+        """
+        self.logger.debug("Enabling '" + audit_type + "' audit device at " +
+                          path + " - " + str(options))
+        self.vault_client.enable_audit_backend(
+            backend_type=audit_type,
+            description=description,
+            options=options,
+            name=path
+        )
+
+    def audit_disable(self, path):
+        """
+        Disable an ausit device
+
+        :param path: mounting point
+        :type path: str
+        """
+        self.logger.debug("Disabling audit device '" + path + "'")
+        self.vault_client.disable_audit_backend(path)

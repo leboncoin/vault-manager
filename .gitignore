@@ -1,6 +1,7 @@
 .python-version
 .idea
 dist
+build
 vaultmanager.egg-info
 __pycache__/
 *.py[cod]
