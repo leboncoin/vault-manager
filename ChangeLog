@@ -1,9 +1,15 @@
 CHANGES
 =======
 
-1.0.3
+1.0.6
 -----
 
+* add auth module, add policies mngnt in LDAP module
+
+1.0.4
+-----
+
+* change README extension
 * add audit module and several fixes
 
 1.0.2

@@ -1,9 +1,11 @@
 .python-version
 .idea
 reinstall.sh
+rebuild.sh
 dist
 build
 vaultmanager.egg-info
 __pycache__/
 *.py[cod]
 **/*.DS_Store
+publish.sh

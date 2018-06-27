@@ -10,6 +10,9 @@ except ImportError:
 
 
 class VaultManagerAudit:
+    """
+    Audit Module
+    """
     logger = None
     base_logger = None
     subparser = None
@@ -29,7 +32,8 @@ class VaultManagerAudit:
         :type subparsers: argparse.ArgumentParser.add_subparsers()
         """
         self.base_logger = base_logger
-        self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
+        self.logger = logging.getLogger(
+            base_logger + "." + self.__class__.__name__)
         self.logger.debug("Initializing VaultManagerLDAP")
         self.initialize_subparser(subparsers)
 
@@ -42,8 +46,11 @@ class VaultManagerAudit:
         :return:
         """
         self.logger.debug("Initializing subparser")
-        self.module_name = self.__class__.__name__.replace("VaultManager", "").lower()
-        self.subparser = subparsers.add_parser(self.module_name, help=self.module_name + ' management')
+        self.module_name = \
+            self.__class__.__name__.replace("VaultManager", "").lower()
+        self.subparser = subparsers.add_parser(
+            self.module_name, help=self.module_name + ' management'
+        )
         self.subparser.add_argument("--push", action='store_true',
                                     help="Push audit configuration to Vault")
         self.subparser.set_defaults(module_name=self.module_name)
@@ -80,6 +87,8 @@ class VaultManagerAudit:
             self.logger.critical(
                 os.environ["VAULT_CONFIG"] + " is not a valid folder")
             return False
+        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
+        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
         return True
 
     def get_distant_audit_devices(self):
@@ -167,8 +176,8 @@ class VaultManagerAudit:
             self.get_local_audit_devices()
             for audit_device in self.local_audit_devices:
                 if audit_device in self.distant_audit_devices:
-                    self.logger.debug("Audit device remaining unchanged " +
-                                      str(audit_device))
+                    self.logger.info("Audit device remaining unchanged " +
+                                     str(audit_device))
             self.disable_distant_audit_devices()
             self.enable_distant_audit_devices()
             self.logger.info("Audit devices successfully pushed to Vault")

@@ -10,6 +10,9 @@ except ImportError:
 
 
 class VaultManagerLDAP:
+    """
+    LDAP Module
+    """
     logger = None
     subparser = None
     parsed_args = None
@@ -52,9 +55,19 @@ class VaultManagerLDAP:
             subparsers.add_parser(self.module_name,
                                   help=self.module_name + ' management')
         self.subparser.add_argument(
-            "--create",
-            action='store_true',
+            "--list-groups", action='store_true', help="List LDAP groups"
+        )
+        self.subparser.add_argument(
+            "--create-policies", action='store_true',
             help="Create policies from LDAP groups and users"
+        )
+        self.subparser.add_argument(
+            "--manage-ldap-groups", nargs='?', metavar="LDAP_mount_point",
+            help="Create LDAP groups in Vault with associated policies at specified mount point"
+        )
+        self.subparser.add_argument(
+            "--manage-ldap-users", nargs='?', metavar="LDAP_mount_point",
+            help="Create LDAP users in Vault with associated policies and groups at specified mount point"
         )
         self.subparser.set_defaults(module_name=self.module_name)
 
@@ -71,7 +84,16 @@ class VaultManagerLDAP:
         Checking provided arguments integrity
         """
         self.logger.debug("Checking arguments integrity")
-        if not self.parsed_args.create:
+        args_false_count = [self.parsed_args.create_policies,
+                            self.parsed_args.manage_ldap_groups,
+                            self.parsed_args.manage_ldap_users,
+                            self.parsed_args.list_groups].count(False)
+        args_none_count = [self.parsed_args.create_policies,
+                           self.parsed_args.manage_ldap_groups,
+                           self.parsed_args.manage_ldap_users,
+                           self.parsed_args.list_groups].count(None)
+        no_args_count = args_false_count + args_none_count
+        if no_args_count in [4, 5]:
             self.logger.critical("you must specify a command")
             return False
         return True
@@ -93,6 +115,8 @@ class VaultManagerLDAP:
             self.logger.critical(
                 os.environ["VAULT_CONFIG"] + " is not a valid folder")
             return False
+        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
+        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
         return True
 
     def read_configuration(self):
@@ -206,6 +230,102 @@ class VaultManagerLDAP:
                 self.logger.info("Deleting user policy: " + policy_path)
                 os.remove(policy_path)
 
+    def manage_groups_in_vault_ldap_conf(self):
+        """
+        Manage groups in Vault LDAP configuration
+        """
+        self.logger.debug("Managing groups to Vault LDAP configuration")
+        raw_vault_ldap_groups = self.vault_client.list('/auth/ldap/groups')
+        existing_groups = []
+        if len(raw_vault_ldap_groups):
+            existing_groups = raw_vault_ldap_groups["keys"]
+        for group in self.conf["groups"]["groups_to_add"]:
+            if group in existing_groups:
+                existing_groups.remove(group)
+            policies = ["group_" + group + "_policy"]
+            if "root" in self.conf["general"]["group"] and \
+                    group in self.conf["general"]["group"]["root"]:
+                policies.append("root")
+            self.logger.info("Adding polices %s to group %s" %
+                             (str(policies), group))
+            self.vault_client.write(
+                "/auth/ldap/groups/" + group,
+                {"policies": self.list_to_string(policies)}
+            )
+        self.logger.debug("Removing groups %s from Vault LDAP conf" %
+                          str(existing_groups))
+        for group in existing_groups:
+            self.logger.info("Removing group %s from Vault LDAP conf" % group)
+            self.vault_client.delete('/auth/ldap/groups/' + group)
+
+    def manage_users_in_vault_ldap_conf(self):
+        """
+        Manage users in Vault LDAP configuration
+        """
+        self.logger.debug("Managing users to Vault LDAP configuration")
+        raw_vault_ldap_users = self.vault_client.list('/auth/ldap/users')
+        existing_users = []
+        if len(raw_vault_ldap_users):
+            existing_users = raw_vault_ldap_users["keys"]
+
+        for user in self.ldap_users:
+            groups_of_user = list(
+                set(self.conf["groups"]["groups_to_add"]).intersection(
+                    self.ldap_users[user]))
+            if not len(groups_of_user):
+                continue
+            if user in existing_users:
+                existing_users.remove(user)
+            policies = ["user_" + user + "_policy"]
+            if "root" in self.conf["general"]["group"] and \
+                    user in self.conf["general"]["user"]["root"]:
+                policies.append("root")
+            self.logger.info("Adding polices %s to user %s" %
+                             (str(policies), user))
+            self.logger.info("Adding groups %s to user %s" %
+                             (str(groups_of_user), user))
+            self.vault_client.write(
+                "/auth/ldap/users/" + user,
+                {
+                    "policies": self.list_to_string(policies),
+                    "groups": self.list_to_string(groups_of_user)
+                }
+            )
+            print(self.list_to_string(policies))
+            print(self.list_to_string(groups_of_user))
+        self.logger.debug("Removing users %s from Vault LDAP conf" %
+                          str(existing_users))
+        for user in existing_users:
+            self.logger.info("Removing user %s from Vault LDAP conf" % user)
+            self.vault_client.delete('/auth/ldap/users/' + user)
+
+    def list_to_string(self, list_to_serialize):
+        """
+        Transform a list to a string
+
+        :param list_to_serialize: list to transform
+        :type list_to_serialize: list
+
+        :return: str
+        """
+        self.logger.debug("serializing list: " + str(list_to_serialize))
+        return str(list_to_serialize)\
+            .replace("[", "")\
+            .replace("]", "")\
+            .replace(" ", "")
+
+    def list_ldap_groups(self):
+        """
+        Display LDAP groups
+        """
+        self.logger.debug("Displaying LDAP groups")
+        groups = []
+        for user in self.ldap_users:
+            for group in self.ldap_users[user]:
+                if group not in groups:
+                    groups.append(group)
+        self.logger.info(str(sorted(groups)))
+
     def run(self, arg_parser, parsed_args):
         """
         Module entry point
@@ -218,7 +338,7 @@ class VaultManagerLDAP:
         self.arg_parser = arg_parser
         self.logger.debug("Module " + self.module_name + " started")
         if not self.check_args_integrity():
-            self.arg_parser.print_help()
+            self.subparser.print_help()
             return False
         if not self.check_env_vars():
             return False
@@ -232,13 +352,25 @@ class VaultManagerLDAP:
             return False
         self.vault_client = VaultClient(self.base_logger)
         self.vault_client.authenticate()
-        if self.parsed_args.create:
+        if self.parsed_args.list_groups:
+            if not self.get_ldap_data():
+                return False
+            self.list_ldap_groups()
+            return True
+        if self.parsed_args.create_policies:
             self.logger.info("Creating LDAP policies")
             if not self.get_ldap_data():
                 return False
             self.create_groups_policies()
             self.create_users_policies()
             self.deleting_previous_policies()
-
+        if self.parsed_args.manage_ldap_groups:
+            self.logger.info("Managing groups in Vault LDAP '%s' config" %
+                             self.parsed_args.manage_ldap_groups)
+            self.manage_groups_in_vault_ldap_conf()
+        if self.parsed_args.manage_ldap_users:
+            self.logger.info("Managing users in Vault LDAP '%s' config" %
+                             self.parsed_args.manage_ldap_users)
+            self.manage_users_in_vault_ldap_conf()
 
 

@@ -88,7 +88,8 @@ class VaultManagerPolicies:
             self.logger.critical(
                 os.environ["VAULT_CONFIG"] + " is not a valid folder")
             return False
-
+        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
+        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
         return True
 
     def pull_policies(self):
