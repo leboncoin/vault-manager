@@ -1,6 +1,5 @@
 import logging
 import hashlib
-import json
 
 
 class AuthMethodLDAP:
@@ -62,8 +61,16 @@ class AuthMethodLDAP:
         Push local auth conf to Vault instance
         """
         self.logger.debug("Pushing local auth conf")
+        to_hide_fields = []
+        for key in self.local_conf:
+            filled_secret = self.vault_client.read_string_with_secret(
+                self.local_conf[key]
+            )
+            if self.local_conf[key] != filled_secret:
+                self.local_conf[key] = filled_secret
+                to_hide_fields.append(key)
         self.vault_client.write("auth/" + self.mount_point + "/config",
-                                self.local_conf)
+                                self.local_conf, to_hide_fields)
 
     def auth_method_configuration(self):
         """

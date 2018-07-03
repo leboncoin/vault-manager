@@ -147,11 +147,9 @@ class VaultManagerPolicies:
             self.vault_client.policy_set(policy_name=policy["name"],
                                          policy_content=policy["content"])
             if policy["name"] in distant_policies:
-                self.logger.info("Policy " + policy["name"] +
-                                  " has been be updated")
+                self.logger.info("Policy %s has been updated" % policy["name"])
             else:
-                self.logger.info("Policy " + policy["name"] +
-                                  " has been be created")
+                self.logger.info("Policy %s has been created" % policy["name"])
         self.logger.info("Policies pushed to Vault")
 
     def run(self, arg_parser, parsed_args):

@@ -2,6 +2,7 @@ import os
 import logging
 import getpass
 import hvac
+import re
 
 
 class VaultClient:
@@ -89,16 +90,29 @@ class VaultClient:
             return listed["data"]
         return {}
 
-    def write(self, path, params):
+    def write(self, path, params, fields_to_hide=None):
         """
         Write at specified path
 
         :param path: Path to write
         :type path: str
+        :param params: Key/Value to write
+        :type params: dict
+        :param fields_to_hide: Fields of Key/Value dict to hide in log
+        :type fields_to_hide: list
 
         :return: dict
         """
-        self.logger.debug("Writing " + str(params) + " at " + path)
+        if not fields_to_hide:
+            self.logger.debug("Writing " + str(params) + " at " + path)
+        else:
+            to_display = {}
+            for key in params:
+                if key not in fields_to_hide:
+                    to_display[key] = params[key]
+                else:
+                    to_display[key] = "HIDDEN"
+            self.logger.debug("Writing " + str(to_display) + " at " + path)
         written = self.vault_client.write(path, **params)
         return written
 
@@ -162,6 +176,26 @@ class VaultClient:
         policy_content = self.vault_client.get_policy(policy_name)
         return policy_content
 
+    def read_string_with_secret(self, string):
+        """
+        If string received contains VAULT{{path/to/secret}},
+        return secret found at path/to/secret.
+        If pattern not found, return not changed string
+
+        :param string: string in which to look for secret path
+        :type string: str
+
+        :return: str
+        """
+        if not string or not isinstance(string, str):
+            return string
+        match = re.findall("VAULT{{(.+):(.+)}}", string)
+        if len(match) == 1:
+            self.logger.debug("Secret found in: %s:%s. Looking in Vault" %
+                              (match[0][0], match[0][1]))
+            return self.read_secret(match[0][0])[match[0][1]]
+        return string
+
     def read_secret(self, secret_path):
         """
         Read and return a secret
@@ -172,7 +206,7 @@ class VaultClient:
         """
         self.logger.debug("Reading secret '" + secret_path + "'")
         secret = self.vault_client.read(secret_path)
-        return secret
+        return secret["data"]
 
     def audit_list(self):
         """

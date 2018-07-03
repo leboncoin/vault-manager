@@ -141,9 +141,9 @@ class VaultManagerLDAP:
         self.logger.info("Reading LDAP data")
         # base_logger, server, user, password, group_dn, user_dn
         try:
-            ldap_password = self.vault_client.read_secret(
+            ldap_password = self.vault_client.read_string_with_secret(
                 self.conf["general"]["ldap"]["password"]
-            )["data"]["password"]
+            )
         except TypeError as e:
             raise Exception("LDAP password does not exists in Vault")
         ldap_reader = LDAPReader(self.base_logger,
