@@ -1,6 +1,7 @@
 import os
 import logging
 import yaml
+from collections import OrderedDict
 try:
     from lib.AuthMethods.AuthMethodLDAP import AuthMethodLDAP
     from lib.VaultClient import VaultClient
@@ -105,9 +106,9 @@ class VaultManagerAuth:
             self.distant_auth_methods.append(
                 VaultAuthMethod(
                     type=raw[auth_method]["type"],
-                    path=(raw[auth_method]["path"] if 'path' in raw[auth_method] else raw[auth_method]["type"]),
+                    path=(raw[auth_method]["path"] if 'path' in raw[auth_method] else auth_method),
                     description=raw[auth_method]["description"],
-                    tuning=raw[auth_method]["config"]
+                    tuning=OrderedDict(sorted(raw[auth_method]["config"].items()))
                 )
             )
         self.logger.debug("Distant auth methods found")
@@ -123,13 +124,13 @@ class VaultManagerAuth:
         for auth_method in self.conf["auth-methods"]:
             auth_config = None
             if "auth_config" in auth_method:
-                auth_config = auth_method["auth_config"]
+                auth_config = OrderedDict(sorted(auth_method["auth_config"].items()))
             self.local_auth_methods.append(
                 VaultAuthMethod(
                     type=auth_method["type"],
                     path=auth_method["path"],
                     description=auth_method["description"],
-                    tuning=auth_method["tuning"],
+                    tuning=OrderedDict(sorted(auth_method["tuning"].items())),
                     auth_config=auth_config
                 )
             )
@@ -210,6 +211,8 @@ class VaultManagerAuth:
 
         :param parsed_args: Arguments parsed fir this module
         :type parsed_args: argparse.ArgumentParser.parse_args()
+        :param arg_parser: Argument parser
+        :type arg_parser: argparse.ArgumentParser
         """
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser

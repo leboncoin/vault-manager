@@ -61,12 +61,15 @@ class VaultManagerModule:
             self.logger.critical(
                 os.environ["VAULT_CONFIG"] + " is not a valid folder")
             return False
+        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
+        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
         return True
 
     def run(self, arg_parser, parsed_args):
         """
         Module entry point
 
+        :param arg_parser: Arguments parser instance
         :param parsed_args: Arguments parsed fir this module
         :type parsed_args: argparse.ArgumentParser.parse_args()
         """

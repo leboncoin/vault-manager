@@ -1,7 +1,7 @@
 import hashlib
 
 
-class VaultAuthMethod:
+class VaultSecretEngine:
     """
     Vault authentication method container
     """
@@ -9,35 +9,36 @@ class VaultAuthMethod:
     path = None
     description = None
     tuning = None
-    auth_config = None
+    secret_config = None
 
-    def __init__(self, type, path, description, tuning=None, auth_config=None):
+    def __init__(self, type, path, description, tuning=None, secret_config=None):
         """
         Instanciate class
 
-        :param type: Authentication type
+        :param type: Secret type
         :type type: str
-        :param path: Authentication mount point
+        :param path: Secret mount point
         :type path: str
-        :param description: Authentication description
+        :param description: Secret description
         :type description: str
-        :param tuning: Authentication tuning
+        :param tuning: Secret tuning
         :type tuning: dict
-        :param auth_config: Authentification specific configuration
-        :type auth_config: dict
+        :param secret_config: Secret specific configuration
+        :type secret_config: dict
         """
         self.type = type
         self.path = path.replace("/", "")
         self.description = (description if description else "")
-        self.tuning = {}
+        self.tuning = dict()
+        self.tuning["force_no_cache"] = False
         for elem in tuning:
             if tuning[elem] != "":
                 self.tuning[elem] = tuning[elem]
-        self.auth_config = auth_config
+        self.secret_config = secret_config
 
     def get_unique_id(self):
         """
-        Return a unique hash by auth method only using the type and path
+        Return a unique hash by secret engine only using the type and path
 
         :return: str
         """

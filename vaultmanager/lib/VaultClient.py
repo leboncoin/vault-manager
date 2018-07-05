@@ -321,6 +321,93 @@ class VaultClient:
                 passthrough_request_headers=passthrough_request_headers
             )
 
+    def secret_list(self):
+        """
+        list and return secrets engines
+
+        :return: dict
+        """
+        self.logger.debug("Listing secrets engines")
+        secrets_engines = {}
+        if not self.dry_run():
+            raw = self.vault_client.list_secret_backends()
+            for key in raw["data"]:
+                if key not in ["cubbyhole/", "identity/", "sys/", "identity/"]:
+                    secrets_engines[key] = raw["data"][key]
+            return secrets_engines
+        return secrets_engines
+
+    def secret_enable(self, secret_type, path, description):
+        """
+        Enable a new secret engine
+
+        :param secret_type: secret engine type
+        :type secret_type: str
+        :param path: mounting point
+        :type path: str
+        :param description: secret engine description
+        :type description: str
+        """
+        self.logger.debug("Enabling '" + secret_type + "' secret engine")
+        if not self.dry_run():
+            self.vault_client.enable_secret_backend(
+                backend_type=secret_type,
+                mount_point=path,
+                description=description
+            )
+
+    def secret_disable(self, path):
+        """
+        Disable an secret engine
+
+        :param path: mounting point
+        :type path: str
+        """
+        self.logger.debug("Disabling secret engine '" + path + "'")
+        if not self.dry_run():
+            self.vault_client.disable_secret_backend(path)
+
+    def secret_tune(self, mount_point, default_lease_ttl, max_lease_ttl,
+                    description=None, audit_non_hmac_request_keys=None,
+                    audit_non_hmac_response_keys=None, listing_visibility=None,
+                    passthrough_request_headers=None):
+        """
+
+        :param mount_point: Auth method mount point
+        :param default_lease_ttl: Default lease TTL
+        :param max_lease_ttl:  Max lease TTL
+        :param description: Description
+        :param audit_non_hmac_request_keys:
+        :param audit_non_hmac_response_keys:
+        :param listing_visibility:
+        :param passthrough_request_headers:
+        """
+        self.logger.debug("Tuning auth method: %s" % str(mount_point))
+        self.logger.debug("default_lease_ttl: %s" % str(default_lease_ttl))
+        self.logger.debug("max_lease_ttl: %s" % str(max_lease_ttl))
+        self.logger.debug("description: %s" % str(description))
+        self.logger.debug("audit_non_hmac_request_keys: %s" %
+                          str(audit_non_hmac_request_keys))
+        self.logger.debug("audit_non_hmac_response_keys: %s" %
+                          str(audit_non_hmac_response_keys))
+        self.logger.debug("listing_ visibility: %s" %
+                          str(listing_visibility))
+        self.logger.debug("passthrough_request_headers: %s" %
+                          str(passthrough_request_headers))
+        # TODO: To uncomment when pull request accepted
+        if not self.dry_run():
+            self.vault_client.tune_secret_backend(
+                backend_type=None,
+                mount_point=mount_point,
+                default_lease_ttl=default_lease_ttl,
+                max_lease_ttl=max_lease_ttl
+                # description=description,
+                # audit_non_hmac_request_keys=audit_non_hmac_request_keys,
+                # audit_non_hmac_response_keys=audit_non_hmac_response_keys,
+                # listing_visibility=listing_visibility,
+                # passthrough_request_headers=passthrough_request_headers
+            )
+
     """
     Other methods
     """
