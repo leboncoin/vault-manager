@@ -155,6 +155,7 @@ class VaultManagerLDAP:
         if not ldap_reader.connect_to_ldap():
             return False
         self.ldap_users = ldap_reader.get_all_users(ldap_reader.get_all_groups())
+        self.logger.debug("Users found: " + str(self.ldap_users))
         ldap_reader.disconnect_from_ldap()
         return True
 
@@ -264,6 +265,7 @@ class VaultManagerLDAP:
         """
         self.logger.debug("Managing users to Vault LDAP configuration")
         raw_vault_ldap_users = self.vault_client.list('/auth/ldap/users')
+        self.logger.debug("Users found: " + str(raw_vault_ldap_users))
         existing_users = []
         if len(raw_vault_ldap_users):
             existing_users = raw_vault_ldap_users["keys"]
@@ -355,15 +357,13 @@ class VaultManagerLDAP:
             self.parsed_args.dry_run
         )
         self.vault_client.authenticate()
+        if not self.get_ldap_data():
+            return False
         if self.parsed_args.list_groups:
-            if not self.get_ldap_data():
-                return False
             self.list_ldap_groups()
             return True
         if self.parsed_args.create_policies:
             self.logger.info("Creating LDAP policies")
-            if not self.get_ldap_data():
-                return False
             self.create_groups_policies()
             self.create_users_policies()
             self.deleting_previous_policies()
