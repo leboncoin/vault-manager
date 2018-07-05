@@ -350,7 +350,10 @@ class VaultManagerLDAP:
         self.user_policies_to_create = []
         if not self.read_configuration():
             return False
-        self.vault_client = VaultClient(self.base_logger)
+        self.vault_client = VaultClient(
+            self.base_logger,
+            self.parsed_args.dry_run
+        )
         self.vault_client.authenticate()
         if self.parsed_args.list_groups:
             if not self.get_ldap_data():

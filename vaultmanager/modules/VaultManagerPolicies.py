@@ -173,7 +173,10 @@ class VaultManagerPolicies:
                                             "policies")
         if not os.path.isdir(self.policies_folder):
             os.mkdir(self.policies_folder)
-        self.vault_client = VaultClient(self.base_logger)
+        self.vault_client = VaultClient(
+            self.base_logger,
+            self.parsed_args.dry_run
+        )
         self.vault_client.authenticate()
         if self.parsed_args.pull:
             self.logger.info("Pulling Policies from Vault")

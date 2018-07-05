@@ -219,7 +219,10 @@ class VaultManagerAuth:
             if not self.check_env_vars():
                 return False
             self.read_configuration()
-            self.vault_client = VaultClient(self.base_logger)
+            self.vault_client = VaultClient(
+                self.base_logger,
+                self.parsed_args.dry_run
+            )
             self.vault_client.authenticate()
             self.get_distant_auth_methods()
             self.get_local_auth_methods()

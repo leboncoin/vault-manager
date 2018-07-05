@@ -56,12 +56,18 @@ class VaultManager:
         Initialize parser and subparsers then launch the specified module
         """
         self.logger.debug("initializing arguments parser")
-        self.arg_parser = argparse.ArgumentParser(description="Vault configuration manager")
-        self.arg_parser.add_argument('-v', '--verbose', action='count', help="enable verbose mode")
+        self.arg_parser = argparse.ArgumentParser(
+            description="Vault configuration manager"
+        )
+        self.arg_parser.add_argument('-v', '--verbose', action='count',
+                                     help="enable verbose mode")
+        self.arg_parser.add_argument('-d', '--dry-run', action='store_true',
+                                     help="run in dry mode: No API calls")
         subparsers = self.arg_parser.add_subparsers()
         # Fetch the list of all available submodules
         self.modules = dict()
-        for file in glob.glob(os.path.join(self.module_path, 'modules', 'VaultManager*.py')):
+        for file in glob.glob(
+                os.path.join(self.module_path, 'modules', 'VaultManager*.py')):
             self.logger.debug("Module " + file + " found")
             module_name = os.path.splitext(os.path.basename(file))[0]
             module_short_name = module_name.replace("VaultManager", "").lower()
@@ -78,4 +84,5 @@ class VaultManager:
             print(self.arg_parser.print_help())
         else:
             # Start the specified module
+            self.logger.info("RUNNING IN DRY MODE")
             self.modules[self.parsed_arguments.module_name].run(self.arg_parser, self.parsed_arguments)

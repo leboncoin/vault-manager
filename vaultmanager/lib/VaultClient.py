@@ -11,49 +11,33 @@ class VaultClient:
     """
     logger = None
     vault_client = None
+    dry = None
 
-    def __init__(self, base_logger):
+    def __init__(self, base_logger, dry):
         """
         :param base_logger: main class name
         :type base_logger: string
+        :param dry: is running in dry run
+        :type dry: bool
         """
         self.logger = logging.getLogger(base_logger + "." +
                                         self.__class__.__name__)
-        self.logger.debug("Instanciating VaultClient class")
+        self.logger.debug("Dry run: " + str(dry))
+        self.dry = dry
+        self.logger.debug("Instantiating VaultClient class")
         self.fetch_api_address()
 
-    def fetch_api_address(self):
-        """
-        Fetch the Vault API address and instanciate hvac client
-        """
-        if "VAULT_ADDR" in os.environ:
-            self.logger.debug("'VAULT_ADDR' found in env")
-            vault_address = os.environ["VAULT_ADDR"]
-        else:
-            self.logger.debug("'VAULT_ADDR' not found in env. Asking for a token")
-            vault_address = input("Vault address to use "\
-                                  "(http://vault_address:vault_port): ")
-        self.logger.debug("Vault address to be used: " + vault_address)
-        self.vault_client = hvac.Client(url=vault_address)
-
-    def authenticate(self):
-        """
-        Vault authentication
-        """
-        self.logger.debug("Starting token authentication")
-        if "VAULT_TOKEN" in os.environ:
-            self.vault_client.token = os.environ["VAULT_TOKEN"]
-        else:
-            self.vault_client.token = getpass.getpass(
-                "Please enter token with correct rights: ")
-        self.is_authenticated()
-
+    """
+    API call methods
+    """
     def is_authenticated(self):
         """
         Check if authenticated against Vault
 
         :return: bool
         """
+        if self.dry_run():
+            return True
         if self.vault_client.is_authenticated():
             self.logger.debug("Client is authenticated")
         else:
@@ -70,7 +54,9 @@ class VaultClient:
         :return: dict
         """
         self.logger.debug("Reading at " + path)
-        read = self.vault_client.read(path)
+        read = None
+        if not self.dry_run():
+            read = self.vault_client.read(path)
         if read:
             return read["data"]
         return {}
@@ -85,7 +71,9 @@ class VaultClient:
         :return: dict
         """
         self.logger.debug("Listing at " + path)
-        listed = self.vault_client.list(path)
+        listed = None
+        if not self.dry_run():
+            listed = self.vault_client.list(path)
         if listed:
             return listed["data"]
         return {}
@@ -113,7 +101,9 @@ class VaultClient:
                 else:
                     to_display[key] = "HIDDEN"
             self.logger.debug("Writing " + str(to_display) + " at " + path)
-        written = self.vault_client.write(path, **params)
+        written = None
+        if not self.dry_run():
+            written = self.vault_client.write(path, **params)
         return written
 
     def delete(self, path):
@@ -126,7 +116,9 @@ class VaultClient:
         :return: dict
         """
         self.logger.debug("Deleting at " + path)
-        deleted = self.vault_client.delete(path)
+        deleted = None
+        if not self.dry_run():
+            deleted = self.vault_client.delete(path)
         return deleted
 
     def policy_list(self):
@@ -137,8 +129,11 @@ class VaultClient:
         """
         self.logger.debug("Fetching list of existing policies")
         self.logger.debug("Policies root and default will not be returned")
-        policies = self.vault_client.list_policies()
-        policies = [pol for pol in policies if pol not in ["root", "default"]]
+        policies = []
+        if not self.dry_run():
+            policies = self.vault_client.list_policies()
+            policies = [pol for pol in policies if
+                        pol not in ["root", "default"]]
         self.logger.debug(str(len(policies)) + " policies found")
         return policies
 
@@ -151,8 +146,10 @@ class VaultClient:
         :param policy_content: content of the policy
         :type policy_content: str
         """
-        self.logger.debug("Setting policy " + policy_name + " - content: \n" + policy_content)
-        self.vault_client.set_policy(policy_name, policy_content)
+        self.logger.debug("Setting policy %s - content: \n%s" %
+                          (policy_name, policy_content))
+        if not self.dry_run():
+            self.vault_client.set_policy(policy_name, policy_content)
 
     def policy_delete(self, policy_name):
         """
@@ -162,7 +159,8 @@ class VaultClient:
         :type policy_name: str
         """
         self.logger.debug("Deleting policy " + policy_name)
-        self.vault_client.delete_policy(policy_name)
+        if not self.dry_run():
+            self.vault_client.delete_policy(policy_name)
 
     def policy_get(self, policy_name):
         """
@@ -170,11 +168,196 @@ class VaultClient:
 
         :param policy_name: name of the policy
         :type policy_name: str
+
         :return: string
         """
         self.logger.debug("Get policy " + policy_name)
-        policy_content = self.vault_client.get_policy(policy_name)
+        policy_content = "POLICY_CONTENT"
+        if not self.dry_run():
+            policy_content = self.vault_client.get_policy(policy_name)
         return policy_content
+
+    def read_secret(self, secret_path):
+        """
+        Read and return a secret
+
+        :param secret_path: secret path
+        :type secret_path: str
+
+        :return: dict
+        """
+        self.logger.debug("Reading secret '" + secret_path + "'")
+        secret = {"KEY": "SECRET"}
+        if not self.dry_run():
+            secret = self.vault_client.read(secret_path)
+            return secret["data"]
+        return secret
+
+    def audit_list(self):
+        """
+        List and return audit devices
+
+        :return: dict
+        """
+        self.logger.debug("Listing audit devices")
+        if not self.dry_run():
+            raw = self.vault_client.list_audit_backends()
+            return raw["data"]
+        return {}
+
+    def audit_enable(self, audit_type, path, description, options):
+        """
+        Enable a new audit device
+
+        :param audit_type: audit device type
+        :type audit_type: str
+        :param path: mounting point
+        :type path: str
+        :param description: audit device description
+        :type description: str
+        :param options: options needed by the audit device type
+        :type options: dict
+        """
+        self.logger.debug("Enabling '" + audit_type + "' audit device at " +
+                          path + " - " + str(options))
+        if not self.dry_run():
+            self.vault_client.enable_audit_backend(
+                backend_type=audit_type,
+                description=description,
+                options=options,
+                name=path
+            )
+
+    def audit_disable(self, path):
+        """
+        Disable an ausit device
+
+        :param path: mounting point
+        :type path: str
+        """
+        self.logger.debug("Disabling audit device '" + path + "'")
+        if not self.dry_run():
+            self.vault_client.disable_audit_backend(path)
+
+    def auth_list(self):
+        """
+        list and return auth methods
+
+        :return: dict
+        """
+        self.logger.debug("Listing auth methods")
+        if not self.dry_run():
+            raw = self.vault_client.list_auth_backends()
+            return raw["data"]
+        return {}
+
+    def auth_enable(self, auth_type, path, description):
+        """
+        Enable a new audit device
+
+        :param auth_type: auth method type
+        :type auth_type: str
+        :param path: mounting point
+        :type path: str
+        :param description: auth method description
+        :type description: str
+        """
+        self.logger.debug("Enabling '" + auth_type + "' auth method")
+        if not self.dry_run():
+            self.vault_client.enable_auth_backend(
+                backend_type=auth_type,
+                mount_point=path,
+                description=description
+            )
+
+    def auth_disable(self, path):
+        """
+        Disable an auth method
+
+        :param path: mounting point
+        :type path: str
+        """
+        self.logger.debug("Disabling auth method '" + path + "'")
+        if not self.dry_run():
+            self.vault_client.disable_auth_backend(path)
+
+    def auth_tune(self, mount_point, default_lease_ttl, max_lease_ttl,
+                  description=None, audit_non_hmac_request_keys=None,
+                  audit_non_hmac_response_keys=None, listing_visibility=None,
+                  passthrough_request_headers=None):
+        """
+
+        :param mount_point: Auth method mount point
+        :param default_lease_ttl: Default lease TTL
+        :param max_lease_ttl:  Max lease TTL
+        :param description: Description
+        :param audit_non_hmac_request_keys:
+        :param audit_non_hmac_response_keys:
+        :param listing_visibility:
+        :param passthrough_request_headers:
+        """
+        self.logger.debug("Tuning auth method: %s" % str(mount_point))
+        self.logger.debug("default_lease_ttl: %s" % str(default_lease_ttl))
+        self.logger.debug("max_lease_ttl: %s" % str(max_lease_ttl))
+        self.logger.debug("description: %s" % str(description))
+        self.logger.debug("audit_non_hmac_request_keys: %s" %
+                          str(audit_non_hmac_request_keys))
+        self.logger.debug("audit_non_hmac_response_keys: %s" %
+                          str(audit_non_hmac_response_keys))
+        self.logger.debug("listing_visibility: %s" %
+                          str(listing_visibility))
+        self.logger.debug("passthrough_request_headers: %s" %
+                          str(passthrough_request_headers))
+        if not self.dry_run():
+            self.vault_client.tune_auth_backend(
+                backend_type=None,
+                mount_point=mount_point,
+                default_lease_ttl=default_lease_ttl,
+                max_lease_ttl=max_lease_ttl,
+                description=description,
+                audit_non_hmac_request_keys=audit_non_hmac_request_keys,
+                audit_non_hmac_response_keys=audit_non_hmac_response_keys,
+                listing_visibility=listing_visibility,
+                passthrough_request_headers=passthrough_request_headers
+            )
+
+    """
+    Other methods
+    """
+    def dry_run(self):
+        """
+        Log entry if dry vault_client call
+        """
+        if self.dry:
+            self.logger.debug("DRY CALL to vault api")
+            return True
+        return False
+
+    def fetch_api_address(self):
+        """
+        Fetch the Vault API address and instanciate hvac client
+        """
+        if "VAULT_ADDR" in os.environ:
+            self.logger.debug("'VAULT_ADDR' found in env")
+            vault_address = os.environ["VAULT_ADDR"]
+        else:
+            self.logger.debug("'VAULT_ADDR' not in env. Asking for a token")
+            vault_address = input("Vault address to use "
+                                  "(http://vault_address:vault_port): ")
+        self.logger.debug("Vault address to be used: " + vault_address)
+        self.vault_client = hvac.Client(url=vault_address)
+
+    def authenticate(self):
+        """
+        Vault authentication
+        """
+        self.logger.debug("Starting token authentication")
+        if "VAULT_TOKEN" in os.environ:
+            self.vault_client.token = os.environ["VAULT_TOKEN"]
+        else:
+            self.vault_client.token = getpass.getpass(
+                "Please enter token with correct rights: ")
+        self.is_authenticated()
 
     def read_string_with_secret(self, string):
         """
@@ -193,132 +376,7 @@ class VaultClient:
         if len(match) == 1:
             self.logger.debug("Secret found in: %s:%s. Looking in Vault" %
                               (match[0][0], match[0][1]))
-            return self.read_secret(match[0][0])[match[0][1]]
+            if not self.dry_run():
+                return self.read_secret(match[0][0])[match[0][1]]
+            return self.read_secret(match[0][0])
         return string
-
-    def read_secret(self, secret_path):
-        """
-        Read and return a secret
-
-        :param secret_path: secret path
-        :type secret_path: str
-        :return: str
-        """
-        self.logger.debug("Reading secret '" + secret_path + "'")
-        secret = self.vault_client.read(secret_path)
-        return secret["data"]
-
-    def audit_list(self):
-        """
-        List and return audit devices
-
-        :return: dict
-        """
-        self.logger.debug("Listing audit devices")
-        raw = self.vault_client.list_audit_backends()
-        return raw["data"]
-
-    def audit_enable(self, audit_type, path, description, options):
-        """
-        Enable a new audit device
-
-        :param audit_type: audit device type
-        :type audit_type: str
-        :param path: mounting point
-        :type path: str
-        :param description: audit device description
-        :type description: str
-        :param options: options needed by the audit device type
-        :type options: dict
-        """
-        self.logger.debug("Enabling '" + audit_type + "' audit device at " +
-                          path + " - " + str(options))
-        self.vault_client.enable_audit_backend(
-            backend_type=audit_type,
-            description=description,
-            options=options,
-            name=path
-        )
-
-    def audit_disable(self, path):
-        """
-        Disable an ausit device
-
-        :param path: mounting point
-        :type path: str
-        """
-        self.logger.debug("Disabling audit device '" + path + "'")
-        self.vault_client.disable_audit_backend(path)
-
-    def auth_list(self):
-        """
-        list and return auth methods
-
-        :return: dict
-        """
-        self.logger.debug("Listing auth methods")
-        raw = self.vault_client.list_auth_backends()
-        return raw["data"]
-
-    def auth_enable(self, auth_type, path, description):
-        """
-        Enable a new audit device
-
-        :param auth_type: auth method type
-        :type auth_type: str
-        :param path: mounting point
-        :type path: str
-        :param description: auth method description
-        :type description: str
-        """
-        self.logger.debug("Enabling '" + auth_type + "' auth method")
-        self.vault_client.enable_auth_backend(
-            backend_type=auth_type,
-            mount_point=path,
-            description=description
-        )
-
-    def auth_disable(self, path):
-        """
-        Disable an auth method
-
-        :param path: mounting point
-        :type path: str
-        """
-        self.logger.debug("Disabling auth method '" + path + "'")
-        self.vault_client.disable_auth_backend(path)
-
-    def auth_tune(self, mount_point, default_lease_ttl, max_lease_ttl,
-                  description=None, audit_non_hmac_request_keys=None,
-                  audit_non_hmac_response_keys=None, listing_visibility=None,
-                  passthrough_request_headers=None):
-        """
-
-        :param mount_point: Auth method mount point
-        :param default_lease_ttl: Default lease TTL
-        :param max_lease_ttl:  Max lease TTL
-        :param description: Description
-        :param audit_non_hmac_request_keys:
-        :param audit_non_hmac_response_keys:
-        :param listing_visibility:
-        :param passthrough_request_headers:
-        """
-        self.logger.debug("Tuning auth method: " + str(mount_point))
-        self.logger.debug("default_lease_ttl: " + str(default_lease_ttl))
-        self.logger.debug("max_lease_ttl: " + str(max_lease_ttl))
-        self.logger.debug("description: " + str(description))
-        self.logger.debug("audit_non_hmac_request_keys: " + str(audit_non_hmac_request_keys))
-        self.logger.debug("audit_non_hmac_response_keys: " + str(audit_non_hmac_response_keys))
-        self.logger.debug("listing_visibility: " + str(listing_visibility))
-        self.logger.debug("passthrough_request_headers: " + str(passthrough_request_headers))
-        self.vault_client.tune_auth_backend(
-            backend_type=None,
-            mount_point=mount_point,
-            default_lease_ttl=default_lease_ttl,
-            max_lease_ttl=max_lease_ttl,
-            description=description,
-            audit_non_hmac_request_keys=audit_non_hmac_request_keys,
-            audit_non_hmac_response_keys=audit_non_hmac_response_keys,
-            listing_visibility=listing_visibility,
-            passthrough_request_headers=passthrough_request_headers
-        )

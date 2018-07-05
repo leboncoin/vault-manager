@@ -170,7 +170,10 @@ class VaultManagerAudit:
                 return False
             self.logger.info("Pushing audit devices configuration to Vault")
             self.read_configuration()
-            self.vault_client = VaultClient(self.base_logger)
+            self.vault_client = VaultClient(
+                self.base_logger,
+                self.parsed_args.dry_run
+            )
             self.vault_client.authenticate()
             self.get_distant_audit_devices()
             self.get_local_audit_devices()
