@@ -260,7 +260,7 @@ class VaultClient:
         raw = self.vault_client.list_auth_backends()
         return raw["data"]
 
-    def auth_enable(self, auth_type, path, description, config):
+    def auth_enable(self, auth_type, path, description):
         """
         Enable a new audit device
 
@@ -270,11 +270,8 @@ class VaultClient:
         :type path: str
         :param description: auth method description
         :type description: str
-        :param config: options needed by the auth method
-        :type config: dict
         """
-        self.logger.debug("Enabling '" + auth_type + "' auth method - "
-                          + str(config))
+        self.logger.debug("Enabling '" + auth_type + "' auth method")
         self.vault_client.enable_auth_backend(
             backend_type=auth_type,
             mount_point=path,

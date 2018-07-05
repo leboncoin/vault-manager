@@ -1,6 +1,16 @@
 CHANGES
 =======
 
+1.0.8
+-----
+
+* fix issue in auth method
+
+1.0.7
+-----
+
+* add method to search secrets in string
+
 1.0.6
 -----
 

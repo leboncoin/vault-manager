@@ -110,7 +110,7 @@ class VaultManagerAuth:
                     tuning=raw[auth_method]["config"]
                 )
             )
-        self.logger.debug("Distant audit devices found")
+        self.logger.debug("Distant auth methods found")
         for elem in self.distant_auth_methods:
             self.logger.debug(elem)
 
@@ -118,7 +118,7 @@ class VaultManagerAuth:
         """
         Fetch local auth methods
         """
-        self.logger.debug("Fetching local audit devices")
+        self.logger.debug("Fetching local auth methods")
         self.local_auth_methods = []
         for auth_method in self.conf["auth-methods"]:
             auth_config = None
@@ -139,7 +139,7 @@ class VaultManagerAuth:
 
     def disable_distant_auth_methods(self):
         """
-        Disable audit devices not found in conf
+        Disable auth methods not found in conf
         """
         self.logger.debug("Disabling auth methods")
         for auth_method in self.distant_auth_methods:
@@ -149,7 +149,7 @@ class VaultManagerAuth:
 
     def enable_distant_auth_methods(self):
         """
-        Enable audit devices found in conf
+        Enable auth methods found in conf
         """
         self.logger.debug("Enabling auth methods")
         for auth_method in self.local_auth_methods:
@@ -158,8 +158,7 @@ class VaultManagerAuth:
                 self.vault_client.auth_enable(
                     auth_type=auth_method.type,
                     path=auth_method.path,
-                    description=auth_method.description,
-                    tuning=auth_method.tuning
+                    description=auth_method.description
                 )
 
     def tune_auth_method(self, local_auth_method, distant_auth_method):
@@ -191,11 +190,16 @@ class VaultManagerAuth:
         """
         Identify auth methods where a tuning is needed
         """
-        self.logger.debug("Tunning auth methods")
+        self.logger.debug("Tuning auth methods")
         for distant_auth in self.distant_auth_methods:
             for local_auth in self.local_auth_methods:
                 if distant_auth == local_auth:
-                    if distant_auth.get_tuning_hash() != local_auth.get_tuning_hash():
+                    distant_tuning_hash = distant_auth.get_tuning_hash()
+                    local_tuning_hash = local_auth.get_tuning_hash()
+                    self.logger.debug("Hashs for %s/" % distant_auth.path)
+                    self.logger.debug("Local: " + local_tuning_hash)
+                    self.logger.debug("Distant: " + distant_tuning_hash)
+                    if distant_tuning_hash != local_tuning_hash:
                         self.logger.info("The auth method " + local_auth.path +
                                          " will be tuned")
                         self.tune_auth_method(local_auth, distant_auth)
@@ -225,6 +229,7 @@ class VaultManagerAuth:
                                       str(auth_method))
             self.disable_distant_auth_methods()
             self.enable_distant_auth_methods()
+            self.get_distant_auth_methods()
             self.logger.info("Auth methods successfully pushed to Vault")
             self.logger.info("Tuning auth methods")
             self.find_auth_methods_to_tune()
