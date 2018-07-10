@@ -4,10 +4,12 @@ import yaml
 from collections import OrderedDict
 try:
     from lib.AuthMethods.AuthMethodLDAP import AuthMethodLDAP
+    from lib.AuthMethods.AuthMethodAppRole import AuthMethodAppRole
     from lib.VaultClient import VaultClient
     from lib.VaultAuthMethod import VaultAuthMethod
 except ImportError:
     from vaultmanager.lib.AuthMethods.AuthMethodLDAP import AuthMethodLDAP
+    from vaultmanager.lib.AuthMethods.AuthMethodAppRole import AuthMethodAppRole
     from vaultmanager.lib.VaultClient import VaultClient
     from vaultmanager.lib.VaultAuthMethod import VaultAuthMethod
 
@@ -36,7 +38,7 @@ class VaultManagerAuth:
         """
         self.base_logger = base_logger
         self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
-        self.logger.debug("Initializing VaultManagerLDAP")
+        self.logger.debug("Initializing VaultManagerAuth")
         self.initialize_subparser(subparsers)
 
     def initialize_subparser(self, subparsers):
@@ -241,8 +243,8 @@ class VaultManagerAuth:
             self.find_auth_methods_to_tune()
             self.logger.info("Auth methods successfully tuned")
             self.logger.info("Setting up auth method specific configuration")
-            auth_method_module = None
             for auth_method in self.local_auth_methods:
+                auth_method_module = None
                 if auth_method.auth_config:
                     if auth_method.type == "ldap":
                         auth_method_module = AuthMethodLDAP(
@@ -251,6 +253,15 @@ class VaultManagerAuth:
                             auth_method.auth_config,
                             self.vault_client
                         )
-            if auth_method_module:
-                auth_method_module.auth_method_configuration()
+                    elif auth_method.type == "approle":
+                        auth_method_module = AuthMethodAppRole(
+                            self.base_logger,
+                            auth_method.path,
+                            auth_method.auth_config,
+                            self.vault_client
+                        )
+                if auth_method_module:
+                    auth_method_module.auth_method_configuration()
+                else:
+                    self.logger.debug("No specific auth method configuration")
             self.logger.info("Auth method specific configuration OK")

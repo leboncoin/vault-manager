@@ -13,6 +13,8 @@ auth-methods:
       default_lease_ttl: 43200
       max_lease_ttl: 0
     auth_config:
+      # All available parameters here
+      # https://www.vaultproject.io/api/auth/ldap/index.html#configure-ldap
       binddn: cn=<CN>,ou=<OU>,dc=<DC>
       bindpass: VAULT{{path/to/secret:password}}
       case_sensitive_names: false
@@ -28,3 +30,15 @@ auth-methods:
       url: ldap://<URL>
       userattr: samaccountname
       userdn: OU=<OU>,DC=<DC>
+  - type: approle
+    path: approle
+    description: Approle authentication
+    tuning:
+      default_lease_ttl: 43200
+      max_lease_ttl: 0
+    auth_config:
+      # All available parameters here
+      # https://www.vaultproject.io/api/auth/approle/index.html#create-new-approle
+      role:
+        role_name: concourse
+        policies: [service_concourse_policy]

@@ -76,7 +76,7 @@ class AuthMethodLDAP:
         """
         Entry point
         """
-        self.logger.debug("Setting up configuration for " + self.mount_point)
+        self.logger.info("Setting up configuration for " + self.mount_point)
         self.logger.debug("Local configuration: " + str(self.local_conf))
         self.get_ldap_configuration()
         if self.get_hash(self.local_conf) != self.get_hash(self.distant_conf):

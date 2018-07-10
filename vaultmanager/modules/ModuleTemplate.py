@@ -23,7 +23,7 @@ class VaultManagerModule:
         """
         self.base_logger = base_logger
         self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
-        self.logger.debug("Initializing VaultManagerLDAP")
+        self.logger.debug("Initializing VaultManagerMODULE")
         self.initialize_subparser(subparsers)
 
     def initialize_subparser(self, subparsers):

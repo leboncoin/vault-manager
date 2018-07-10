@@ -8,8 +8,9 @@ class AuthMethodTemplate:
     logger = None
     mount_point = None
     auth_config = None
+    vault_client = None
 
-    def __init__(self, base_logger, mount_point, auth_config):
+    def __init__(self, base_logger, mount_point, auth_config, vault_client):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -22,9 +23,10 @@ class AuthMethodTemplate:
                                         self.__class__.__name__)
         self.mount_point = mount_point
         self.auth_config = auth_config
+        self.vault_client = vault_client
 
     def auth_method_configuration(self):
         """
         Entry point
         """
-        self.logger.debug("Setting up configuration for " + self.mount_point)
+        self.logger.info("Setting up configuration for " + self.mount_point)

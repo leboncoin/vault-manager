@@ -321,6 +321,102 @@ class VaultClient:
                 passthrough_request_headers=passthrough_request_headers
             )
 
+    def auth_approle_list(self, mount_point):
+        """
+        Fetch the list of roles at mount point
+
+        :param mount_point: approle auth mount point
+        :type mount_point: str
+
+        :return: dict
+        """
+        self.logger.debug("Listing roles at " + mount_point)
+        if not self.dry_run():
+            try:
+                raw_roles = self.vault_client.list_roles(mount_point)
+            except hvac.exceptions.InvalidPath:
+                return []
+            return raw_roles['data']['keys']
+        return {}
+
+    def auth_approle_get(self, role_name, mount_point):
+        """
+        Get role configuration
+
+        :param role_name: Role name
+        :type role_name: str
+        :param mount_point: approle mount point
+        :type mount_point: str
+
+        :return: dict
+        """
+        self.logger.debug("Get role configuration for %s at %s" %
+                          (role_name, mount_point))
+        if not self.dry_run():
+            raw_role = self.vault_client.get_role(role_name, mount_point)
+            return raw_role['data']
+        return {
+            'bind_secret_id': True,
+            'bound_cidr_list': [],
+            'local_secret_ids': False,
+            'period': 0,
+            'policies': ['policy'],
+            'secret_id_num_uses': 0,
+            'secret_id_ttl': 0,
+            'token_max_ttl': 0,
+            'token_num_uses': 0,
+            'token_ttl': 0
+        }
+
+    def auth_approle_create(self, role_name, role_conf, mount_point):
+        """
+        Create a new role at mount point
+
+        :param role_name: Role name
+        :type role_name: str
+        :param role_conf: Role parameters
+        :type role_conf: dict
+        :param mount_point: approle mount point
+        :type mount_point: str
+        """
+        self.logger.debug("Adding role %s/role/%s: %s" %
+                          (mount_point, role_name, str(role_conf)))
+        if not self.dry_run():
+            self.vault_client.create_role(
+                role_name,
+                mount_point,
+                **role_conf
+            )
+
+    def auth_approle_delete(self, role_name, mount_point):
+        """
+        Delete a role at mount point
+
+        :param role_name: Role name
+        :type role_name: str
+        :param mount_point: approle mount point
+        :type mount_point: str
+        """
+        self.logger.debug("Deleting role %s/role/%s" % (mount_point, role_name))
+        if not self.dry_run():
+            self.vault_client.delete_role(role_name, mount_point)
+
+    def auth_approle_tune(self, role_name, role_conf, mount_point):
+        """
+        Create a new role at mount point
+
+        :param role_name: Role name
+        :type role_name: str
+        :param role_conf: Role parameters
+        :type role_conf: dict
+        :param mount_point: approle mount point
+        :type mount_point: str
+        """
+        self.logger.debug("Tuning role %s/role/%s: %s" %
+                          (mount_point, role_name, str(role_conf)))
+        if not self.dry_run():
+            self.write("auth/" + mount_point + "/role/" + role_name, role_conf)
+
     def secret_list(self):
         """
         list and return secrets engines
