@@ -63,11 +63,23 @@ class VaultManagerLDAP:
         )
         self.subparser.add_argument(
             "--manage-ldap-groups", nargs='?', metavar="LDAP_mount_point",
-            help="Create LDAP groups in Vault with associated policies at specified mount point"
+            help="""Create LDAP groups in Vault with associated 
+            policies at specified mount point"""
         )
         self.subparser.add_argument(
             "--manage-ldap-users", nargs='?', metavar="LDAP_mount_point",
-            help="Create LDAP users in Vault with associated policies and groups at specified mount point"
+            help="""Create LDAP users in Vault with associated 
+             policies and groups at specified mount point"""
+        )
+        self.subparser.add_argument(
+            "--create-groups-secrets", nargs='?',
+            metavar="groups_secrets_folder",
+            help="Create a folder for each group in <groups_secrets_folder>"
+        )
+        self.subparser.add_argument(
+            "--create-users-secrets", nargs='?',
+            metavar="users_secrets_folder",
+            help="Create a folder for each user in <users_secrets_folder>"
         )
         self.subparser.set_defaults(module_name=self.module_name)
 
@@ -87,13 +99,17 @@ class VaultManagerLDAP:
         args_false_count = [self.parsed_args.create_policies,
                             self.parsed_args.manage_ldap_groups,
                             self.parsed_args.manage_ldap_users,
-                            self.parsed_args.list_groups].count(False)
+                            self.parsed_args.list_groups,
+                            self.parsed_args.create_groups_secrets,
+                            self.parsed_args.create_users_secrets].count(False)
         args_none_count = [self.parsed_args.create_policies,
                            self.parsed_args.manage_ldap_groups,
                            self.parsed_args.manage_ldap_users,
-                           self.parsed_args.list_groups].count(None)
+                           self.parsed_args.list_groups,
+                           self.parsed_args.create_groups_secrets,
+                           self.parsed_args.create_users_secrets].count(None)
         no_args_count = args_false_count + args_none_count
-        if no_args_count in [4, 5]:
+        if no_args_count in [6, 7]:
             self.logger.critical("you must specify a command")
             return False
         return True
@@ -328,6 +344,61 @@ class VaultManagerLDAP:
                     groups.append(group)
         self.logger.info(str(sorted(groups)))
 
+    def create_groups_secrets(self):
+        """
+        Create a secret folder for each LDAP group under specified path
+        """
+        self.logger.debug("Creating groups secrets under %s" %
+                          self.parsed_args.create_groups_secrets)
+        existing_folders = self.vault_client.list(
+            self.parsed_args.create_groups_secrets
+        )
+        if len(existing_folders):
+            existing_folders = existing_folders['keys']
+        self.logger.debug("Already existing folders: " + str(existing_folders))
+        for group in self.conf["groups"]["groups_to_add"]:
+            print(group)
+            if group not in existing_folders:
+                self.logger.info("Creating folder: " + group)
+                self.vault_client.write(self.parsed_args.create_groups_secrets +
+                                        "/" + group, {group: "group private secrets space"})
+        for group in existing_folders:
+            if group not in self.conf["groups"]["groups_to_add"]:
+                tree = self.vault_client.get_secrets_tree(self.parsed_args.create_groups_secrets + "/" + group)
+                self.logger.info("Deleting folder " + group + " and associated secrets " + str(tree))
+                for secret in tree:
+                    self.vault_client.delete(secret)
+
+    def create_users_secrets(self):
+        """
+        Create a secret folder for each LDAP user under specified path
+        """
+        self.logger.debug("Creating users secrets under %s" %
+                          self.parsed_args.create_users_secrets)
+        enabled_users = []
+        for user in self.ldap_users:
+            groups_of_user = list(
+                set(self.conf["groups"]["groups_to_add"]).intersection(
+                    self.ldap_users[user]))
+            if len(groups_of_user):
+                enabled_users.append(user)
+        existing_folders = self.vault_client.list(
+            self.parsed_args.create_users_secrets
+        )
+        if len(existing_folders):
+            existing_folders = existing_folders['keys']
+        self.logger.debug("Already existing folders: " + str(existing_folders))
+        for user in enabled_users:
+            if user not in existing_folders:
+                self.logger.info("Creating folder: " + user)
+                self.vault_client.write(self.parsed_args.create_users_secrets + "/" + user, {user: "user private secrets space"})
+        for user in existing_folders:
+            if user not in enabled_users:
+                tree = self.vault_client.get_secrets_tree(self.parsed_args.create_users_secrets + "/" + user)
+                self.logger.info("Deleting folder " + user + " and associated secrets " + str(tree))
+                for secret in tree:
+                    self.vault_client.delete(secret)
+
     def run(self, arg_parser, parsed_args):
         """
         Module entry point
@@ -375,5 +446,13 @@ class VaultManagerLDAP:
             self.logger.info("Managing users in Vault LDAP '%s' config" %
                              self.parsed_args.manage_ldap_users)
             self.manage_users_in_vault_ldap_conf()
+        if self.parsed_args.create_groups_secrets:
+            self.logger.info("Creating groups folders under secret path '/%s'" %
+                             self.parsed_args.create_groups_secrets)
+            self.create_groups_secrets()
+        if self.parsed_args.create_users_secrets:
+            self.logger.info("Creating users folders under secret path '/%s'" %
+                             self.parsed_args.create_users_secrets)
+            self.create_users_secrets()
 
 

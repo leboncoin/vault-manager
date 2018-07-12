@@ -467,3 +467,35 @@ class VaultClient:
                 return self.read_secret(match[0][0])[match[0][1]]
             return self.read_secret(match[0][0])
         return string
+
+    def get_secrets_tree(self, path):
+        """
+        Get the secrets tree for the given path
+
+        :param path: path to check
+        :type path: str
+
+        :return: the list of all secrets
+        """
+        self.logger.debug("Finding tree in " + path)
+        tree = []
+        tree += self.get_secrets_tree_recursive(path)
+        return tree
+
+    def get_secrets_tree_recursive(self, path):
+        """
+        Recursively browse a path and find secrets
+
+        :param path: path to browse
+        :type path:str
+
+        :return:list
+        """
+        secrets = []
+        if len(self.list(path)):
+            for p in self.list(path)['keys']:
+                if p.endswith("/"):
+                    secrets += self.get_secrets_tree_recursive(path + "/" + p)
+                else:
+                    secrets.append(path + "/" + p)
+        return secrets
