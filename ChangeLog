@@ -1,9 +1,16 @@
 CHANGES
 =======
 
+* add approle specific configuration
+* allow ldap module to manage groups/users secrets
+* add documentation in README file
+* change README extension to .md
+* fix dry run log
+
 1.0.9
 -----
 
+* releasing 1.0.9
 * add secret module
 * allow LDAP modules params to be run alone
 * add dry run mode

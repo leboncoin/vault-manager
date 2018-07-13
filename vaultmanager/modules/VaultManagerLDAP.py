@@ -267,7 +267,7 @@ class VaultManagerLDAP:
                              (str(policies), group))
             self.vault_client.write(
                 "/auth/ldap/groups/" + group,
-                {"policies": self.list_to_string(policies)}
+                {"policies": self.list_to_string(policies, separator="")}
             )
         self.logger.debug("Removing groups %s from Vault LDAP conf" %
                           str(existing_groups))
@@ -305,19 +305,17 @@ class VaultManagerLDAP:
             self.vault_client.write(
                 "/auth/ldap/users/" + user,
                 {
-                    "policies": self.list_to_string(policies),
-                    "groups": self.list_to_string(groups_of_user)
+                    "policies": self.list_to_string(policies, separator=""),
+                    "groups": self.list_to_string(groups_of_user, separator="")
                 }
             )
-            print(self.list_to_string(policies))
-            print(self.list_to_string(groups_of_user))
         self.logger.debug("Removing users %s from Vault LDAP conf" %
                           str(existing_users))
         for user in existing_users:
             self.logger.info("Removing user %s from Vault LDAP conf" % user)
             self.vault_client.delete('/auth/ldap/users/' + user)
 
-    def list_to_string(self, list_to_serialize):
+    def list_to_string(self, list_to_serialize, separator="'"):
         """
         Transform a list to a string
 
@@ -330,7 +328,8 @@ class VaultManagerLDAP:
         return str(list_to_serialize)\
             .replace("[", "")\
             .replace("]", "")\
-            .replace(" ", "")
+            .replace(" ", "")\
+            .replace("'", separator)
 
     def list_ldap_groups(self):
         """
@@ -354,14 +353,13 @@ class VaultManagerLDAP:
             self.parsed_args.create_groups_secrets
         )
         if len(existing_folders):
-            existing_folders = existing_folders['keys']
+            existing_folders = [e.replace("/", "") for e in existing_folders['keys']]
         self.logger.debug("Already existing folders: " + str(existing_folders))
         for group in self.conf["groups"]["groups_to_add"]:
-            print(group)
             if group not in existing_folders:
                 self.logger.info("Creating folder: " + group)
                 self.vault_client.write(self.parsed_args.create_groups_secrets +
-                                        "/" + group, {group: "group private secrets space"})
+                                        "/" + group + "/description", {group: "group private secrets space"})
         for group in existing_folders:
             if group not in self.conf["groups"]["groups_to_add"]:
                 tree = self.vault_client.get_secrets_tree(self.parsed_args.create_groups_secrets + "/" + group)
@@ -386,12 +384,12 @@ class VaultManagerLDAP:
             self.parsed_args.create_users_secrets
         )
         if len(existing_folders):
-            existing_folders = existing_folders['keys']
+            existing_folders = [e.replace("/", "") for e in existing_folders['keys']]
         self.logger.debug("Already existing folders: " + str(existing_folders))
         for user in enabled_users:
             if user not in existing_folders:
                 self.logger.info("Creating folder: " + user)
-                self.vault_client.write(self.parsed_args.create_users_secrets + "/" + user, {user: "user private secrets space"})
+                self.vault_client.write(self.parsed_args.create_users_secrets + "/" + user + "/description", {user: "user private secrets space"})
         for user in existing_folders:
             if user not in enabled_users:
                 tree = self.vault_client.get_secrets_tree(self.parsed_args.create_users_secrets + "/" + user)
