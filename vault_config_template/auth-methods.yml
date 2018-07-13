@@ -37,8 +37,11 @@ auth-methods:
       default_lease_ttl: 43200
       max_lease_ttl: 0
     auth_config:
-      # All available parameters here
-      # https://www.vaultproject.io/api/auth/approle/index.html#create-new-approle
-      role:
+      concourse:
+        # All available parameters here
+        # https://www.vaultproject.io/api/auth/approle/index.html#create-new-approle
         role_name: concourse
         policies: [service_concourse_policy]
+      jenkins:
+        role_name: jenkins
+        policies: [service_jenkins_policy]

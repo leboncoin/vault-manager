@@ -1,11 +1,5 @@
 ---
 general:
-  ldap:
-    server: ldap://10.4.55.41
-    username: <LDAP_username>
-    password: <LDAP_password_Vault_path>
-    group_dn: OU=<group1>,OU=<group2>,DC=<company>
-    user_dn: OU=<users1>,OU=<users2>,DC=<company>
   group:
     default_policy: group_policy.hcl
   user:

@@ -1,0 +1,6 @@
+ldap:
+  server: ldap://<XXX.XXX.XXX.XXX>
+  username: <LDAP_username>
+  password: <LDAP_password_Vault_path>
+  group_dn: OU=<group1>,OU=<group2>,DC=<company>
+  user_dn: OU=<users1>,OU=<users2>,DC=<company>

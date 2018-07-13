@@ -86,8 +86,7 @@ class VaultManagerAuth:
         Read configuration file
         """
         self.logger.debug("Reading configuration")
-        with open(os.path.join(os.environ["VAULT_CONFIG"], "auth",
-                               "auth-methods.yml"),
+        with open(os.path.join(os.environ["VAULT_CONFIG"], "auth-methods.yml"),
                   'r') as fd:
             try:
                 self.conf = yaml.load(fd)

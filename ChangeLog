@@ -1,6 +1,11 @@
 CHANGES
 =======
 
+1.1.0
+-----
+
+* documentation update and some fixes
+* fix issues in LDAP module
 * add approle specific configuration
 * allow ldap module to manage groups/users secrets
 * add documentation in README file

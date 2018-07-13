@@ -70,6 +70,7 @@ vault-manager <module> -h
 Each module can be run with `--dry-run` or `--verbose` args
 
 e.g.
+
 ```bash
 $> vault-manager -vvvv -d ldap --list-groups
 ```
@@ -149,7 +150,7 @@ optional arguments:
 
 One configuration file is needed by this module
 
-* `$VAULT_CONFIG/auth/auth-methods.yml`
+* `$VAULT_CONFIG/auth-methods.yml`
 
 e.g. **auth-methods.yml**
 
@@ -169,6 +170,8 @@ auth-methods:
       default_lease_ttl: 43200
       max_lease_ttl: 0
     auth_config:
+      # All available parameters here
+      # https://www.vaultproject.io/api/auth/ldap/index.html#configure-ldap
       binddn: cn=<CN>,ou=<OU>,dc=<DC>
       bindpass: VAULT{{path/to/secret:password}}
       case_sensitive_names: false
@@ -184,6 +187,21 @@ auth-methods:
       url: ldap://<URL>
       userattr: samaccountname
       userdn: OU=<OU>,DC=<DC>
+  - type: approle
+    path: approle
+    description: Approle authentication
+    tuning:
+      default_lease_ttl: 43200
+      max_lease_ttl: 0
+    auth_config:
+      concourse:
+        # All available parameters here
+        # https://www.vaultproject.io/api/auth/approle/index.html#create-new-approle
+        role_name: concourse
+        policies: [service_concourse_policy]
+      jenkins:
+        role_name: jenkins
+        policies: [service_jenkins_policy]
 ```
 
 ### arguments
@@ -204,9 +222,11 @@ auth-methods:
 
 ```bash
 $> vault-manager ldap -h
-usage: vault-manager ldap [-h] [--list-groups] [--create-policies]
-                          [--manage-ldap-groups [LDAP_mount_point]]
-                          [--manage-ldap-users [LDAP_mount_point]]
+usage: cli.py ldap [-h] [--list-groups] [--create-policies]
+                   [--manage-ldap-groups [LDAP_mount_point]]
+                   [--manage-ldap-users [LDAP_mount_point]]
+                   [--create-groups-secrets [groups_secrets_folder]]
+                   [--create-users-secrets [users_secrets_folder]]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -218,29 +238,42 @@ optional arguments:
   --manage-ldap-users [LDAP_mount_point]
                         Create LDAP users in Vault with associated policies
                         and groups at specified mount point
+  --create-groups-secrets [groups_secrets_folder]
+                        Create a folder for each group in
+                        <groups_secrets_folder>
+  --create-users-secrets [users_secrets_folder]
+                        Create a folder for each user in
+                        <users_secrets_folder>
 ```
 
 ### Configuration file
 
 Three files are needed by this module
 
+* `$VAULT_CONFIG/ldap.yml`
 * `$VAULT_CONFIG/policies/policies.yml`
 * `$VAULT_CONFIG/policies/group_policy.hcl`
 * `$VAULT_CONFIG/policies/user_policy.hcl`
 
-**policies.yml** is the configuration file for **ldap** module.
+**ldap.yml** is the configuration file of the **ldap** module
+
+```yaml
+---
+ldap:
+  server: ldap://<URL>
+  username: <LDAP_username>
+  password: <LDAP_password_Vault_path>
+  group_dn: OU=<group1>,OU=<group2>,DC=<company>
+  user_dn: OU=<users1>,OU=<users2>,DC=<company>
+```
+
+**policies.yml** is used by **ldap** module.
 
 e.g. **policies.yml**
 
 ```yaml
 ---
 general:
-  ldap:
-    server: ldap://<URL>
-    username: <LDAP_username>
-    password: <LDAP_password_Vault_path>
-    group_dn: OU=<group1>,OU=<group2>,DC=<company>
-    user_dn: OU=<users1>,OU=<users2>,DC=<company>
   group:
     # Policy used to generate groups policies
     default_policy: group_policy.hcl
@@ -274,18 +307,26 @@ users:
 e.g. **group_policy.hcl**
 
 ```hcl
-# Default policy for group
+# Groups default policy
+path "groups/" {
+  capabilities = ["list"]
+}
+
 path "groups/{{GROUP_NAME}}/*"  {
   capabilities = ["read", "create", "update", "delete", "list"]
 }
 ```
 
-**user_policy.hcl** contains the default policy for users. The pattern `{{GROUP_NAME}}` will be replaced by the user name.
+**user_policy.hcl** contains the default policy for users. The pattern `{{USER_NAME}}` will be replaced by the user name.
 
 e.g. **user_policy.hcl**
 
 ```hcl
 # Default policy for user
+path "users/" {
+  capabilities = ["list"]
+}
+
 path "users/{{USER_NAME}}/*" {
   capabilities = ["read", "create", "update", "delete", "list"]
 }
@@ -336,6 +377,26 @@ The correct policy for the group will be applied
 
 **manage-ldap-users** will create users found in LDAP under the LDAP_mount_point Vault configuration. See Vault documentation for more details [create-update-ldap-user](https://www.vaultproject.io/api/auth/ldap/index.html#create-update-ldap-user)
 The correct policy for the group will be applied
+
+#### create-groups-secrets
+
+`vault-manager ldap --create-groups-secrets [groups_secrets_folder]`
+
+**create-groups-secrets** will create/delete a secret 'folder' for each LDAP group at `groups_secrets_folder/{{GROUP_NAME}}`.
+
+**NOTE:** If the folder already exists, it will not be modified
+
+**WARNING:** If secrets 'folder' have to be deleted (because the group doesn't exists in configuration anymore), **all secrets in this 'folder' will be lost**
+
+#### create-users-secrets
+
+`vault-manager ldap --create-users-secrets [users_secrets_folder]`
+
+**create-users-secrets** will create/delete a secret 'folder' for each LDAP user at `users_secrets_folder/{{USER_NAME}}`.
+
+**NOTE:** If the folder already exists, it will not be modified
+
+**WARNING:** If secrets 'folder' have to be deleted (because the user doesn't exists in configuration anymore), **all secrets in this 'folder' will be lost**
 
 ## policies
 

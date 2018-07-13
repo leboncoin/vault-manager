@@ -20,6 +20,7 @@ class VaultManagerLDAP:
     module_name = None
     base_logger = None
     conf = None
+    ldap_conf = None
     vault_client = None
     ldap_users = None
     policies_folder = None
@@ -137,7 +138,7 @@ class VaultManagerLDAP:
 
     def read_configuration(self):
         """
-        Read the configuration file
+        Read the policies configuration file
         """
         self.logger.debug("Reading configuration")
         with open(os.path.join(self.policies_folder, "policies.yml"),
@@ -150,6 +151,23 @@ class VaultManagerLDAP:
         self.logger.debug("Read conf: " + str(self.conf))
         return True
 
+    def read_ldap_configuration(self):
+        """
+        Read the LDAP configuration file
+        """
+        self.logger.debug("Reading LDAP configuration file")
+        with open(os.path.join(os.environ["VAULT_CONFIG"], "ldap.yml"),
+                  'r') as fd:
+            try:
+                self.ldap_conf = yaml.load(fd)
+            except yaml.YAMLError as e:
+                self.logger.critical("Impossible to load LDAP conf file: %s" %
+                                     str(e))
+                return False
+        self.logger.debug("Read LDAP conf: " + str(self.conf))
+        return True
+
+
     def get_ldap_data(self):
         """
         Fetch users and groups from LDAP
@@ -158,16 +176,16 @@ class VaultManagerLDAP:
         # base_logger, server, user, password, group_dn, user_dn
         try:
             ldap_password = self.vault_client.read_string_with_secret(
-                self.conf["general"]["ldap"]["password"]
+                self.ldap_conf["ldap"]["password"]
             )
         except TypeError as e:
             raise Exception("LDAP password does not exists in Vault")
         ldap_reader = LDAPReader(self.base_logger,
-                                 self.conf["general"]["ldap"]["server"],
-                                 self.conf["general"]["ldap"]["username"],
+                                 self.ldap_conf["ldap"]["server"],
+                                 self.ldap_conf["ldap"]["username"],
                                  ldap_password,
-                                 self.conf["general"]["ldap"]["group_dn"],
-                                 self.conf["general"]["ldap"]["user_dn"])
+                                 self.ldap_conf["ldap"]["group_dn"],
+                                 self.ldap_conf["ldap"]["user_dn"])
         if not ldap_reader.connect_to_ldap():
             return False
         self.ldap_users = ldap_reader.get_all_users(ldap_reader.get_all_groups())
@@ -419,7 +437,7 @@ class VaultManagerLDAP:
         self.group_policies_folder = os.path.join(self.policies_folder, "group")
         self.group_policies_to_create = []
         self.user_policies_to_create = []
-        if not self.read_configuration():
+        if not self.read_configuration() or not self.read_ldap_configuration():
             return False
         self.vault_client = VaultClient(
             self.base_logger,
