@@ -13,19 +13,21 @@ class VaultClient:
     vault_client = None
     dry = None
 
-    def __init__(self, base_logger, dry):
+    def __init__(self, base_logger, dry, vault_addr=None):
         """
         :param base_logger: main class name
         :type base_logger: string
         :param dry: is running in dry run
         :type dry: bool
+        :param vault_addr: vault address which will overload env var VAULT_ADDR
+        :type vault_addr :str
         """
         self.logger = logging.getLogger(base_logger + "." +
                                         self.__class__.__name__)
         self.logger.debug("Dry run: " + str(dry))
         self.dry = dry
         self.logger.debug("Instantiating VaultClient class")
-        self.fetch_api_address()
+        self.fetch_api_address(vault_addr)
 
     """
     API call methods
@@ -78,7 +80,7 @@ class VaultClient:
             return listed["data"]
         return {}
 
-    def write(self, path, params, fields_to_hide=None):
+    def write(self, path, params, fields_to_hide=None, hide_all=None):
         """
         Write at specified path
 
@@ -88,12 +90,14 @@ class VaultClient:
         :type params: dict
         :param fields_to_hide: Fields of Key/Value dict to hide in log
         :type fields_to_hide: list
+        :param hide_all: Hide key and value in log
+        :type hide_all: bool
 
         :return: dict
         """
-        if not fields_to_hide:
+        if not fields_to_hide and not hide_all:
             self.logger.debug("Writing " + str(params) + " at " + path)
-        else:
+        elif not hide_all:
             to_display = {}
             for key in params:
                 if key not in fields_to_hide:
@@ -101,6 +105,8 @@ class VaultClient:
                 else:
                     to_display[key] = "HIDDEN"
             self.logger.debug("Writing " + str(to_display) + " at " + path)
+        else:
+            self.logger.debug("Writing at " + path)
         written = None
         if not self.dry_run():
             written = self.vault_client.write(path, **params)
@@ -516,30 +522,36 @@ class VaultClient:
             return True
         return False
 
-    def fetch_api_address(self):
+    def fetch_api_address(self, vault_addr):
         """
         Fetch the Vault API address and instanciate hvac client
+        :param vault_addr: vault address which will overload env var VAULT_ADDR
+        :type vault_addr :str
         """
-        if "VAULT_ADDR" in os.environ:
+        if vault_addr:
+            vault_address = vault_addr
+        elif "VAULT_ADDR" in os.environ:
             self.logger.debug("'VAULT_ADDR' found in env")
             vault_address = os.environ["VAULT_ADDR"]
         else:
-            self.logger.debug("'VAULT_ADDR' not in env. Asking for a token")
-            vault_address = input("Vault address to use "
-                                  "(http://vault_address:vault_port): ")
+            self.logger.error("No Vault address found")
         self.logger.debug("Vault address to be used: " + vault_address)
         self.vault_client = hvac.Client(url=vault_address)
 
-    def authenticate(self):
+    def authenticate(self, vault_token=None):
         """
         Vault authentication
+
+        :param vault_token: vault token which will overload env var VAULT_TOKEN
+        :type vault_token: str
         """
         self.logger.debug("Starting token authentication")
-        if "VAULT_TOKEN" in os.environ:
+        if vault_token:
+            self.vault_client.token = vault_token
+        elif "VAULT_TOKEN" in os.environ:
             self.vault_client.token = os.environ["VAULT_TOKEN"]
         else:
-            self.vault_client.token = getpass.getpass(
-                "Please enter token with correct rights: ")
+            self.logger.error("No Vault token found")
         self.is_authenticated()
 
     def read_string_with_secret(self, string):
@@ -594,4 +606,4 @@ class VaultClient:
                     secrets += self.get_secrets_tree_recursive(path + "/" + p)
                 else:
                     secrets.append(path + "/" + p)
-        return secrets
+        return [secret.replace("//", "/") for secret in secrets]

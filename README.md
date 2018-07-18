@@ -216,6 +216,46 @@ auth-methods:
 
 **WARNING:** Any authentication method enabled in Vault but not in the configuration file will be disabled.
 
+## kv
+
+**kv** modules allows to perform actions on the key/value store
+
+**NOTE:** In addition of VAULT_ADDR and VAULT_TOKEN environment variable, the two following are needed
+
+* `VAULT_TARGET_ADDR` : Vault URL which will be the target for the exported key/value store
+* `VAULT_TARGET_TOKEN` : Vault token with correct right for `VAULT_TARGET_ADDR`
+
+```bash
+$> vault-manager kv -h
+usage: cli.py kv [-h] [--export PATH_TO_EXPORT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --export PATH_TO_EXPORT
+                        export kv store from specified path PATH_TO_EXPORT
+                        from $VAULT_ADDR instance to $VAULT_TARGET_ADDR at the
+                        same path. $VAULT_TOKEN is used for $VAULT_ADDR and
+                        $VAULT_TARGET_TOKEN is used for $VAULT_TARGET_ADDR
+```
+
+### Configuration file
+
+There is no configuration file needed by this module
+
+### arguments
+
+## export
+
+`vault-manager kv --export PATH_TO_EXPORT`
+
+**export** will export k/v tree under PATH_TO_EXPORT.
+
+All secrets under PATH_TO_EXPORT on $VAULT_ADDR will be exported to PATH_TO_EXPORT on $VAULT_TARGET_ADDR.
+
+**WARNING:** All secrets already existing on $VAULT_TARGET_ADDR will be overwritten
+
+**NOTE:** Secrets already existing on $VAULT_TARGET_ADDR but not existing on $VAULT_ADDR will not be deleted
+
 ## ldap
 
 **ldap** module is in charge of interacting with your LDAP contacts
