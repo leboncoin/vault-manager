@@ -167,7 +167,6 @@ class VaultManagerLDAP:
         self.logger.debug("Read LDAP conf: " + str(self.conf))
         return True
 
-
     def get_ldap_data(self):
         """
         Fetch users and groups from LDAP
@@ -179,7 +178,8 @@ class VaultManagerLDAP:
                 self.ldap_conf["ldap"]["password"]
             )
         except TypeError as e:
-            raise Exception("LDAP password does not exists in Vault")
+            raise Exception("LDAP password does not exists in Vault at %s" %
+                            str(self.ldap_conf["ldap"]["password"]))
         ldap_reader = LDAPReader(self.base_logger,
                                  self.ldap_conf["ldap"]["server"],
                                  self.ldap_conf["ldap"]["username"],

@@ -200,7 +200,11 @@ class VaultClient:
         secret = {"KEY": "SECRET"}
         if not self.dry_run():
             secret = self.vault_client.read(secret_path)
-            return secret["data"]
+            try:
+                return secret["data"]
+            except TypeError as e:
+                self.logger.critical("Cannot read secret at " + secret_path)
+                raise e
         return secret
 
     def audit_list(self):
@@ -580,7 +584,6 @@ class VaultClient:
                               (match[0][0], match[0][1]))
             if not self.dry_run():
                 return self.read_secret(match[0][0])[match[0][1]]
-            return self.read_secret(match[0][0])
         return string
 
     def get_secrets_tree(self, path):
