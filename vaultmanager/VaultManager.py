@@ -63,6 +63,8 @@ class VaultManager:
                                      help="enable verbose mode")
         self.arg_parser.add_argument('-d', '--dry-run', action='store_true',
                                      help="run in dry mode: No API calls")
+        self.arg_parser.add_argument('-s', '--skip-tls', action='store_true',
+                                     help='disable TLS verification')
         subparsers = self.arg_parser.add_subparsers()
         # Fetch the list of all available submodules
         self.modules = dict()

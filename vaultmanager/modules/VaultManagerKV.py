@@ -76,7 +76,8 @@ class VaultManagerKV:
         self.logger.debug("Reading kv tree")
         vault_client = VaultClient(
             self.base_logger,
-            self.parsed_args.dry_run
+            dry=self.parsed_args.dry_run,
+            skip_tls=self.parsed_args.skip_tls
         )
         vault_client.authenticate()
         self.logger.info("Exporting %s from %s to %s" %
@@ -105,8 +106,9 @@ class VaultManagerKV:
         self.logger.debug("Pushing exported kv to Vault")
         vault_client = VaultClient(
             self.base_logger,
-            self.parsed_args.dry_run,
-            os.environ["VAULT_TARGET_ADDR"]
+            dry=self.parsed_args.dry_run,
+            vault_addr=os.environ["VAULT_TARGET_ADDR"],
+            skip_tls=self.parsed_args.skip_tls
         )
         vault_client.authenticate(os.environ["VAULT_TARGET_TOKEN"])
         for secret in exported_kv:

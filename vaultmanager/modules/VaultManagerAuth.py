@@ -225,7 +225,8 @@ class VaultManagerAuth:
             self.read_configuration()
             self.vault_client = VaultClient(
                 self.base_logger,
-                self.parsed_args.dry_run
+                dry=self.parsed_args.dry_run,
+                skip_tls=self.parsed_args.skip_tls
             )
             self.vault_client.authenticate()
             self.get_distant_auth_methods()

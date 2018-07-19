@@ -441,7 +441,8 @@ class VaultManagerLDAP:
             return False
         self.vault_client = VaultClient(
             self.base_logger,
-            self.parsed_args.dry_run
+            dry=self.parsed_args.dry_run,
+            skip_tls=self.parsed_args.skip_tls
         )
         self.vault_client.authenticate()
         if not self.get_ldap_data():

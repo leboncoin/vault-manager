@@ -1,6 +1,5 @@
 import os
 import logging
-import getpass
 import hvac
 import re
 
@@ -12,8 +11,9 @@ class VaultClient:
     logger = None
     vault_client = None
     dry = None
+    skip_tls = None
 
-    def __init__(self, base_logger, dry, vault_addr=None):
+    def __init__(self, base_logger, dry=False, vault_addr=None, skip_tls=False):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -21,11 +21,15 @@ class VaultClient:
         :type dry: bool
         :param vault_addr: vault address which will overload env var VAULT_ADDR
         :type vault_addr :str
+        :param skip_tls: skipping TLS verification
+        :type skip_tls: bool
         """
         self.logger = logging.getLogger(base_logger + "." +
                                         self.__class__.__name__)
         self.logger.debug("Dry run: " + str(dry))
         self.dry = dry
+        self.logger.debug("Skip TLS: " + str(skip_tls))
+        self.skip_tls = skip_tls
         self.logger.debug("Instantiating VaultClient class")
         self.fetch_api_address(vault_addr)
 
@@ -536,7 +540,10 @@ class VaultClient:
         else:
             self.logger.error("No Vault address found")
         self.logger.debug("Vault address to be used: " + vault_address)
-        self.vault_client = hvac.Client(url=vault_address)
+        self.vault_client = hvac.Client(
+            url=vault_address,
+            verify=(not self.skip_tls)
+        )
 
     def authenticate(self, vault_token=None):
         """

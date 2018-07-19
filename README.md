@@ -59,6 +59,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -v, --verbose         enable verbose mode
   -d, --dry-run         run in dry mode: No API calls
+  -s, --skip-tls        disable TLS verification
 ```
 
 You can print the help for each module by typing
@@ -67,12 +68,12 @@ You can print the help for each module by typing
 vault-manager <module> -h
 ```
 
-Each module can be run with `--dry-run` or `--verbose` args
+Each module can be run with `--dry-run`, `--verbose` or `--skip-tls` args
 
 e.g.
 
 ```bash
-$> vault-manager -vvvv -d ldap --list-groups
+$> vault-manager -vvvv -d -s ldap --list-groups
 ```
 
 **NOTE:** For all modules, the three following environment variables have to be set:
@@ -109,7 +110,6 @@ One configuration file is needed by this module
 e.g. **audit-devices.yml**
 
 ```yaml
----
 audit-devices:
   - type: file
     path: file_log
@@ -155,7 +155,6 @@ One configuration file is needed by this module
 e.g. **auth-methods.yml**
 
 ```yaml
----
 auth-methods:
   - type: token
     path: token
@@ -298,7 +297,6 @@ Three files are needed by this module
 **ldap.yml** is the configuration file of the **ldap** module
 
 ```yaml
----
 ldap:
   server: ldap://<URL>
   username: <LDAP_username>
@@ -312,7 +310,6 @@ ldap:
 e.g. **policies.yml**
 
 ```yaml
----
 general:
   group:
     # Policy used to generate groups policies
@@ -550,7 +547,6 @@ One configuration file is needed by this module
 e.g. **secrets-engines.yml**
 
 ```yaml
----
 secrets-engines:
   - type: kv
     path: services

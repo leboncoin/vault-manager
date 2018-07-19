@@ -175,7 +175,8 @@ class VaultManagerPolicies:
             os.mkdir(self.policies_folder)
         self.vault_client = VaultClient(
             self.base_logger,
-            self.parsed_args.dry_run
+            dry=self.parsed_args.dry_run,
+            skip_tls=self.parsed_args.skip_tls
         )
         self.vault_client.authenticate()
         if self.parsed_args.pull:
