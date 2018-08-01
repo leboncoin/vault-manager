@@ -45,9 +45,17 @@ class VaultManagerKV:
                                     PATH_TO_EXPORT from $VAULT_ADDR instance
                                     to $VAULT_TARGET_ADDR at the same path.
                                     $VAULT_TOKEN is used for $VAULT_ADDR and
-                                    $VAULT_TARGET_TOKEN is used for 
+                                    $VAULT_TARGET_TOKEN is used for
                                     $VAULT_TARGET_ADDR""",
                                     metavar="PATH_TO_EXPORT")
+        self.subparser.add_argument("--copy", nargs=2,
+                                    help="""copy kv store from specified path
+                                    COPY_FROM_PATH from $VAULT_ADDR instance
+                                    to $VAULT_TARGET_ADDR at path COPY_TO_PATH.
+                                    $VAULT_TOKEN is used for $VAULT_ADDR and
+                                    $VAULT_TARGET_TOKEN is used for
+                                    $VAULT_TARGET_ADDR""",
+                                    metavar=("COPY_FROM_PATH", "COPY_TO_PATH"))
         self.subparser.set_defaults(module_name=self.module_name)
 
     def check_env_vars(self):
@@ -67,10 +75,12 @@ class VaultManagerKV:
         self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
         return True
 
-    def read_from_vault(self):
+    def read_from_vault(self, path_to_read):
         """
         Read secret tree from Vault
 
+        :param path_to_read: secret path to read and return
+        :type path_to_read: str
         :return dict(dict)
         """
         self.logger.debug("Reading kv tree")
@@ -80,26 +90,23 @@ class VaultManagerKV:
             skip_tls=self.parsed_args.skip_tls
         )
         vault_client.authenticate()
-        self.logger.info("Exporting %s from %s to %s" %
-                         (
-                             self.parsed_args.export[0],
-                             os.environ["VAULT_ADDR"],
-                             os.environ["VAULT_TARGET_ADDR"]
-                         )
-                         )
         kv_full = {}
         kv_list = vault_client.get_secrets_tree(
-            self.parsed_args.export[0]
+            path_to_read
         )
         self.logger.debug("Secrets found: " + str(kv_list))
         for kv in kv_list:
             kv_full[kv] = vault_client.read_secret(kv)
         return kv_full
 
-    def push_to_vault(self, exported_kv):
+    def push_to_vault(self, exported_path, exported_kv, target_path):
         """
         Push exported kv to Vault
 
+        :param exported_path: export root path
+        :type exported_path: str
+        :param target_path: push kv to this path
+        :type target_path: str
         :param exported_kv: Exported KV store
         :type exported_kv: dict
         """
@@ -112,8 +119,15 @@ class VaultManagerKV:
         )
         vault_client.authenticate(os.environ["VAULT_TARGET_TOKEN"])
         for secret in exported_kv:
-            self.logger.debug("Exporting secret: " + secret)
-            vault_client.write(secret, exported_kv[secret], hide_all=True)
+            secret_target_path = self.__list_to_string(
+                target_path.split('/') + secret.split('/')[len(exported_path.split('/')):]
+                , separator="/"
+            )
+            self.logger.debug(
+                "Exporting secret: " + secret + " to " + secret_target_path
+            )
+            vault_client.write(secret_target_path, exported_kv[secret],
+                               hide_all=True)
 
     def run(self, arg_parser, parsed_args):
         """
@@ -127,15 +141,59 @@ class VaultManagerKV:
         self.arg_parser = arg_parser
         if not self.check_env_vars():
             return False
-        if not self.parsed_args.export:
-            self.logger.error("Only one parameter should be specified")
+        if not self.parsed_args.export and not self.parsed_args.copy:
+            self.logger.error("One parameter should be specified")
             self.subparser.print_help()
             return False
         self.logger.debug("Module " + self.module_name + " started")
         if self.parsed_args.export:
-            exported_kv = self.read_from_vault()
-            self.push_to_vault(exported_kv)
+            self.logger.info("Exporting %s from %s to %s" %
+                             (
+                                 self.parsed_args.export[0],
+                                 os.environ["VAULT_ADDR"],
+                                 os.environ["VAULT_TARGET_ADDR"]
+                             )
+                             )
+            exported_kv = self.read_from_vault(self.parsed_args.export[0])
+            self.push_to_vault(self.parsed_args.export[0], exported_kv,
+                               self.parsed_args.export[0])
+            self.logger.info("Secrets successfully exported")
+        elif self.parsed_args.copy:
+            self.logger.info("Copying %s from %s to %s on %s" %
+                             (
+                                 self.parsed_args.copy[0],
+                                 os.environ["VAULT_ADDR"],
+                                 self.parsed_args.copy[1],
+                                 os.environ["VAULT_TARGET_ADDR"]
+                             )
+                             )
+            exported_kv = self.read_from_vault(self.parsed_args.copy[0])
+            self.push_to_vault(self.parsed_args.copy[0], exported_kv,
+                               self.parsed_args.copy[1])
+            self.logger.info("Secrets successfully copied")
 
+    def __list_to_string(self, lst, delimiter="", separator=","):
+        """
+        Convert a list to string
+
+        :param lst: list to serialize
+        :type lst: list
+        :param delimiter: quoting string
+        :type delimiter: str
+        :param separator: separator between list elements
+        :type separator: str
+
+        :return: str
+        """
+        self.logger.debug("Converting list " + str(lst))
+        lst = [elem for elem in lst if lst]
+        target = ""
+        for idx, elem in enumerate(lst):
+            if idx != 0:
+                target += separator
+            target += delimiter + elem + delimiter
+        self.logger.debug("Returning: " + target)
+        return target
 
 
 

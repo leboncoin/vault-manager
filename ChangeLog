@@ -1,6 +1,12 @@
 CHANGES
 =======
 
+1.1.2
+-----
+
+* add copy argument to kv module
+* add log when secret not found in Vault
+
 1.1.1
 -----
 

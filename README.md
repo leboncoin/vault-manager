@@ -227,6 +227,7 @@ auth-methods:
 ```bash
 $> vault-manager kv -h
 usage: cli.py kv [-h] [--export PATH_TO_EXPORT]
+                 [--copy COPY_FROM_PATH COPY_TO_PATH]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -234,6 +235,11 @@ optional arguments:
                         export kv store from specified path PATH_TO_EXPORT
                         from $VAULT_ADDR instance to $VAULT_TARGET_ADDR at the
                         same path. $VAULT_TOKEN is used for $VAULT_ADDR and
+                        $VAULT_TARGET_TOKEN is used for $VAULT_TARGET_ADDR
+  --copy COPY_FROM_PATH COPY_TO_PATH
+                        copy kv store from specified path COPY_FROM_PATH from
+                        $VAULT_ADDR instance to $VAULT_TARGET_ADDR at path
+                        COPY_TO_PATH. $VAULT_TOKEN is used for $VAULT_ADDR and
                         $VAULT_TARGET_TOKEN is used for $VAULT_TARGET_ADDR
 ```
 
@@ -243,13 +249,33 @@ There is no configuration file needed by this module
 
 ### arguments
 
-## export
+#### export
 
 `vault-manager kv --export PATH_TO_EXPORT`
 
 **export** will export k/v tree under PATH_TO_EXPORT.
 
 All secrets under PATH_TO_EXPORT on $VAULT_ADDR will be exported to PATH_TO_EXPORT on $VAULT_TARGET_ADDR.
+
+**WARNING:** All secrets already existing on $VAULT_TARGET_ADDR will be overwritten
+
+**NOTE:** Secrets already existing on $VAULT_TARGET_ADDR but not existing on $VAULT_ADDR will not be deleted
+
+#### copy
+
+`vault-manager kv --copy COPY_FROM_PATH COPY_TO_PATH`
+
+**copy** will copy k/v tree at COPY_FROM_PATH to COPY_TO_PATH.
+
+All secrets under COPY_FROM_PATH on $VAULT_ADDR will be copied to COPY_TO_PATH on $VAULT_TARGET_ADDR. ($VAULT_ADDR and $VAULT_TARGET_ADDR can be identical if you want to duplicate a secret tree)
+
+e.g.
+
+with the following command
+
+`vault-manager kv --copy path/to/tree path/to/new-tree`
+
+The secret `path/to/tree/this/is/secret` will be copied at `path/to/new-tree/this/is/secret`
 
 **WARNING:** All secrets already existing on $VAULT_TARGET_ADDR will be overwritten
 
