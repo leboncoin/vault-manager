@@ -219,15 +219,11 @@ auth-methods:
 
 **kv** modules allows to perform actions on the key/value store
 
-**NOTE:** In addition of VAULT_ADDR and VAULT_TOKEN environment variable, the two following are needed
-
-* `VAULT_TARGET_ADDR` : Vault URL which will be the target for the exported key/value store
-* `VAULT_TARGET_TOKEN` : Vault token with correct right for `VAULT_TARGET_ADDR`
-
 ```bash
 $> vault-manager kv -h
 usage: cli.py kv [-h] [--export PATH_TO_EXPORT]
                  [--copy COPY_FROM_PATH COPY_TO_PATH]
+                 [--delete PATH_TO_DELETE]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -241,6 +237,10 @@ optional arguments:
                         $VAULT_ADDR instance to $VAULT_TARGET_ADDR at path
                         COPY_TO_PATH. $VAULT_TOKEN is used for $VAULT_ADDR and
                         $VAULT_TARGET_TOKEN is used for $VAULT_TARGET_ADDR
+  --delete PATH_TO_DELETE
+                        delete PATH_TO_DELETE and all secrets under it from
+                        $VAULT_ADDR instance. $VAULT_TOKEN is used for
+                        $VAULT_ADDR
 ```
 
 ### Configuration file
@@ -255,6 +255,11 @@ There is no configuration file needed by this module
 
 **export** will export k/v tree under PATH_TO_EXPORT.
 
+**NOTE:** In addition of VAULT_ADDR and VAULT_TOKEN environment variable, the two following are needed
+
+* `VAULT_TARGET_ADDR` : Vault URL which will be the target for the exported key/value store
+* `VAULT_TARGET_TOKEN` : Vault token with correct right for `VAULT_TARGET_ADDR`
+
 All secrets under PATH_TO_EXPORT on $VAULT_ADDR will be exported to PATH_TO_EXPORT on $VAULT_TARGET_ADDR.
 
 **WARNING:** All secrets already existing on $VAULT_TARGET_ADDR will be overwritten
@@ -266,6 +271,11 @@ All secrets under PATH_TO_EXPORT on $VAULT_ADDR will be exported to PATH_TO_EXPO
 `vault-manager kv --copy COPY_FROM_PATH COPY_TO_PATH`
 
 **copy** will copy k/v tree at COPY_FROM_PATH to COPY_TO_PATH.
+
+**NOTE:** In addition of VAULT_ADDR and VAULT_TOKEN environment variable, the two following are needed
+
+* `VAULT_TARGET_ADDR` : Vault URL which will be the target for the exported key/value store
+* `VAULT_TARGET_TOKEN` : Vault token with correct right for `VAULT_TARGET_ADDR`
 
 All secrets under COPY_FROM_PATH on $VAULT_ADDR will be copied to COPY_TO_PATH on $VAULT_TARGET_ADDR. ($VAULT_ADDR and $VAULT_TARGET_ADDR can be identical if you want to duplicate a secret tree)
 
@@ -280,6 +290,14 @@ The secret `path/to/tree/this/is/secret` will be copied at `path/to/new-tree/thi
 **WARNING:** All secrets already existing on $VAULT_TARGET_ADDR will be overwritten
 
 **NOTE:** Secrets already existing on $VAULT_TARGET_ADDR but not existing on $VAULT_ADDR will not be deleted
+
+#### delete
+
+`vault-manager kv --delete PATH_TO_DELETE`
+
+**delete** will delete all secrets at and under PATH_TO_DELETE on $VAULT_ADDR
+
+**WARNING:** All secrets at and under PATH_TO_DELETE will be deleted and it will not be possible to recover them
 
 ## ldap
 
