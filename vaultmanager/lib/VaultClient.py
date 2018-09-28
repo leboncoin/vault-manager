@@ -586,6 +586,26 @@ class VaultClient:
                 return self.read_secret(match[0][0])[match[0][1]]
         return string
 
+    def read_string_with_env(self, string):
+        """
+        If string received contains ENV{{env_var_name}},
+        return environment variable value.
+        If the env var is not found, return string given
+
+        :param string: name of the env var to look for
+        :type string: str
+
+        :return: str
+        """
+        if not string or not isinstance(string, str):
+            return string
+        match = re.findall("ENV{{(.+)}}", string)
+        if len(match) == 1:
+            self.logger.debug("Env var found: %s" % match[0])
+            if not self.dry_run():
+                return os.getenv(match[0], string)
+        return string
+
     def get_secrets_tree(self, path):
         """
         Get the secrets tree for the given path
