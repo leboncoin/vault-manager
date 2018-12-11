@@ -29,7 +29,6 @@ class VaultManager:
         """
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
-        #formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
         stream_handler = logging.StreamHandler()
         stream_handler.setLevel(logging.INFO)
@@ -51,6 +50,22 @@ class VaultManager:
             handler.setLevel(log_level)
         self.logger.debug("Log level changed to " + str(log_level))
 
+    def add_arguments(self):
+        """
+        Add optional arguments to parser
+        """
+        self.arg_parser.add_argument(
+            '-v', '--verbose', action='count', help="enable verbose mode"
+        )
+        self.arg_parser.add_argument(
+            '-d', '--dry-run', action='store_true',
+            help="run in dry mode: No API calls"
+        )
+        self.arg_parser.add_argument(
+            '-s', '--skip-tls', action='store_true',
+            help='disable TLS verification'
+        )
+
     def initialize_arg_parser(self):
         """
         Initialize parser and subparsers then launch the specified module
@@ -59,12 +74,7 @@ class VaultManager:
         self.arg_parser = argparse.ArgumentParser(
             description="Vault configuration manager"
         )
-        self.arg_parser.add_argument('-v', '--verbose', action='count',
-                                     help="enable verbose mode")
-        self.arg_parser.add_argument('-d', '--dry-run', action='store_true',
-                                     help="run in dry mode: No API calls")
-        self.arg_parser.add_argument('-s', '--skip-tls', action='store_true',
-                                     help='disable TLS verification')
+        self.add_arguments()
         subparsers = self.arg_parser.add_subparsers()
         # Fetch the list of all available submodules
         self.modules = dict()
@@ -74,9 +84,15 @@ class VaultManager:
             module_name = os.path.splitext(os.path.basename(file))[0]
             module_short_name = module_name.replace("VaultManager", "").lower()
             try:
-                module = getattr(importlib.import_module('modules.' + module_name), module_name)
+                module = getattr(
+                    importlib.import_module('modules.' + module_name),
+                    module_name
+                )
             except ImportError:
-                module = getattr(importlib.import_module('vaultmanager.modules.' + module_name), module_name)
+                module = getattr(importlib.import_module(
+                    'vaultmanager.modules.' + module_name),
+                    module_name
+                )
             self.modules[module_short_name] = module(self.base_logger_name, subparsers)
         self.parsed_arguments = self.arg_parser.parse_args()
         if self.parsed_arguments.verbose:
