@@ -54,7 +54,7 @@ class VaultManagerAuth:
             self.__class__.__name__.replace("VaultManager", "").lower()
         self.subparser = subparsers.add_parser(
             self.module_name,
-            help=self.module_name + ' management'
+            help=self.module_name + ' management [DEPRECATED]'
         )
         self.subparser.add_argument("--push", action='store_true',
                                     help="Push auth methods to Vault")

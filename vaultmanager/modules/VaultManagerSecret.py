@@ -46,7 +46,7 @@ class VaultManagerSecret:
         self.module_name = \
             self.__class__.__name__.replace("VaultManager", "").lower()
         self.subparser = subparsers.add_parser(
-            self.module_name, help=self.module_name + ' management'
+            self.module_name, help=self.module_name + ' management [DEPRECATED]'
         )
         self.subparser.add_argument("--push", action='store_true',
                                     help="Push secrets engines to Vault")
