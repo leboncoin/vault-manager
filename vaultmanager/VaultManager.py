@@ -5,6 +5,7 @@ import argparse
 import logging
 import importlib
 import getpass
+import coloredlogs
 
 
 class VaultManager:
@@ -14,6 +15,10 @@ class VaultManager:
     modules = None
     base_logger_name = None
     parsed_arguments = None
+    log_format = None
+    log_format_verbose = None
+    log_level_styles = None
+    log_field_styles = None
 
     def __init__(self, module_path):
         self.base_logger_name = "VaultManager"
@@ -22,17 +27,47 @@ class VaultManager:
         self.logger.debug("Module path is: " + self.module_path)
         self.initialize_arg_parser()
 
+    def set_logger_styles(self):
+        """
+        Change default values for coloredlogs and logger format
+        """
+        self.log_format ="%(asctime)s %(levelname)-8s %(message)s"
+        self.log_format_verbose = "%(asctime)s,%(msecs)03d %(levelname)-8s %(name)s.%(funcName)s:%(lineno)d\n%(message)s"
+
+        self.log_level_styles = dict(coloredlogs.DEFAULT_LEVEL_STYLES)
+        self.log_level_styles["info"] = {"color": "white"}
+        self.log_level_styles["debug"] = {"color": "green"}
+        self.log_level_styles["critical"] = {
+            "color": "magenta",
+            "bold": coloredlogs.CAN_USE_BOLD_FONT
+        }
+        self.log_field_styles = dict(coloredlogs.DEFAULT_FIELD_STYLES)
+        self.log_field_styles["asctime"] = {"color": "yellow", "bright": True}
+        self.log_field_styles["name"] = {"color": "blue"}
+        self.log_field_styles["lineno"] = {"color": "yellow"}
+        self.log_field_styles["funcname"] = {"color": "cyan"}
+        self.log_field_styles["levelname"] = {"color": "white"}
+
     def set_logger(self):
         """
         Initialize logger
         """
+        logging.getLogger().setLevel(logging.INFO)
+
         self.logger = logging.getLogger(self.base_logger_name)
-        self.logger.setLevel(logging.WARNING)
-        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        self.logger.setLevel(logging.INFO)
+
+        self.set_logger_styles()
+        formatter = coloredlogs.ColoredFormatter(
+            self.log_format,
+            level_styles=self.log_level_styles,
+            field_styles=self.log_field_styles
+        )
         stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.WARNING)
+        stream_handler.setLevel(logging.INFO)
         stream_handler.setFormatter(formatter)
         self.logger.addHandler(stream_handler)
+
         self.logger = logging.getLogger(self.base_logger_name + ".VaultManager")
 
     def adjust_log_level(self):
@@ -43,16 +78,19 @@ class VaultManager:
         if not self.parsed_arguments.verbose:
             self.logger.debug("Log level remains unchanged")
             return
-        log_level = logging.WARNING
-        if self.parsed_arguments.verbose == 1:
-            log_level = logging.INFO
-        elif self.parsed_arguments.verbose >= 2:
-            log_level = logging.DEBUG
-        self.logger.debug("Changing log level to " + str(log_level))
-        logging.getLogger(self.base_logger_name).setLevel(log_level)
+        self.logger.debug("Changing log level to " + str(logging.DEBUG))
+        logging.getLogger(self.base_logger_name).setLevel(logging.DEBUG)
         for handler in logging.getLogger(self.base_logger_name).handlers:
-            handler.setLevel(log_level)
-        self.logger.debug("Log level changed to " + str(log_level))
+            handler.setLevel(logging.DEBUG)
+            if self.parsed_arguments.verbose >= 2:
+                handler.setFormatter(
+                    coloredlogs.ColoredFormatter(
+                        self.log_format_verbose,
+                        level_styles=self.log_level_styles,
+                        field_styles=self.log_field_styles
+                    )
+                )
+        self.logger.debug("Log level changed to " + str(logging.DEBUG))
 
     def add_arguments(self):
         """
@@ -107,7 +145,8 @@ class VaultManager:
             if os.getenv('VAULT_TARGET_TOKEN'):
                 self.parsed_arguments.vault_target_token = os.getenv(
                     'VAULT_TARGET_TOKEN')
-        elif self.parsed_arguments.vault_target_token and not self.parsed_arguments.vault_target_addr:
+        elif self.parsed_arguments.vault_target_token and not \
+                self.parsed_arguments.vault_target_addr:
             self.logger.warning(
                 "Cannot set Vault target token without Vault target address")
             return False

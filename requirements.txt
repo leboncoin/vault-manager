@@ -1,3 +1,4 @@
 hvac==0.6.1
 pyyaml==3.12
 python-ldap==3.0.0
+coloredlogs==10.0
