@@ -82,7 +82,7 @@ class VaultManagerKV:
                                     metavar="PATH_TO_DELETE")
         self.subparser.set_defaults(module_name=self.module_name)
 
-    def read_from_vault(self, path_to_read, vault_client=None):
+    def read_from_vault(self, path_to_read, vault_client):
         """
         Read secret tree from Vault
 
@@ -93,14 +93,6 @@ class VaultManagerKV:
         :return dict(dict)
         """
         self.logger.debug("Reading kv tree")
-        # TODO: to delete this if
-        if not vault_client:
-            vault_client = VaultClient(
-                self.base_logger,
-                dry=self.parsed_args.dry_run,
-                skip_tls=self.parsed_args.skip_tls
-            )
-            vault_client.authenticate()
         kv_full = {}
         kv_list = vault_client.secrets_tree_list(
             path_to_read
@@ -110,7 +102,7 @@ class VaultManagerKV:
             kv_full[kv] = vault_client.read_secret(kv)
         return kv_full
 
-    def push_to_vault(self, exported_path, exported_kv, target_path, vault_client=None):
+    def push_to_vault(self, exported_path, exported_kv, target_path, vault_client):
         """
         Push exported kv to Vault
 
@@ -122,14 +114,6 @@ class VaultManagerKV:
         :type exported_kv: dict
         """
         self.logger.debug("Pushing exported kv to Vault")
-        if not vault_client:
-            vault_client = VaultClient(
-                self.base_logger,
-                dry=self.parsed_args.dry_run,
-                vault_addr=os.environ["VAULT_TARGET_ADDR"],
-                skip_tls=self.parsed_args.skip_tls
-            )
-            vault_client.authenticate(os.environ["VAULT_TARGET_TOKEN"])
         for secret in exported_kv:
 
             secret_target_path = utils.list_to_string(
@@ -143,7 +127,7 @@ class VaultManagerKV:
             vault_client.write(secret_target_path, exported_kv[secret],
                                hide_all=True)
 
-    def delete_from_vault(self, kv_to_delete, vault_client=None):
+    def delete_from_vault(self, kv_to_delete, vault_client):
         """
         Delete all secrets at and under specified path
 
@@ -153,14 +137,6 @@ class VaultManagerKV:
         :type vault_client: VaultClient
         """
         self.logger.debug("Deleting secrets from " + os.environ["VAULT_ADDR"])
-        # TODO: to delete this if
-        if not vault_client:
-            vault_client = VaultClient(
-                self.base_logger,
-                dry=self.parsed_args.dry_run,
-                skip_tls=self.parsed_args.skip_tls
-            )
-            vault_client.authenticate()
         for secret in kv_to_delete:
             self.logger.info("Deleting '" + secret + "'")
             vault_client.delete(secret)
@@ -282,11 +258,9 @@ class VaultManagerKV:
             self.logger.info("Deleting all secrets at and under %s at %s" %
                              (to_delete,
                               os.environ["VAULT_ADDR"]))
-            exported_kv = self.read_from_vault(
-                to_delete, vault_client=vault_client
-            )
+            exported_kv = self.read_from_vault(to_delete, vault_client)
             if len(exported_kv):
-                self.delete_from_vault(exported_kv, vault_client=vault_client)
+                self.delete_from_vault(exported_kv, vault_client)
                 self.logger.debug("Secrets at '%s' successfully deleted" %
                                   to_delete)
             else:
