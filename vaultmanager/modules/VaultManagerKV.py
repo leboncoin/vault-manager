@@ -62,14 +62,6 @@ class VaultManagerKV:
         self.subparser = subparsers.add_parser(
             self.module_name, help=self.module_name + ' management'
         )
-        self.subparser.add_argument("--export", nargs=1,
-                                    help="""export kv store from specified path
-                                    PATH_TO_EXPORT from $VAULT_ADDR instance
-                                    to $VAULT_TARGET_ADDR at the same path.
-                                    $VAULT_TOKEN is used for $VAULT_ADDR and
-                                    $VAULT_TARGET_TOKEN is used for
-                                    $VAULT_TARGET_ADDR""",
-                                    metavar="PATH_TO_EXPORT")
         self.subparser.add_argument("--copy-path", nargs=2,
                                     help="""copy kv store from specified path
                                     COPY_FROM_PATH from $VAULT_ADDR instance
@@ -172,25 +164,6 @@ class VaultManagerKV:
         for secret in kv_to_delete:
             self.logger.info("Deleting '" + secret + "'")
             vault_client.delete(secret)
-
-    def kv_export(self):
-        """
-        Method running the export function of KV module
-        """
-        self.logger.info("Exporting %s from %s to %s" %
-                         (
-                             self.parsed_args.export[0],
-                             os.environ["VAULT_ADDR"],
-                             os.environ["VAULT_TARGET_ADDR"]
-                         )
-                         )
-        exported_kv = self.read_from_vault(self.parsed_args.export[0])
-        if len(exported_kv):
-            self.push_to_vault(self.parsed_args.export[0], exported_kv,
-                               self.parsed_args.export[0])
-            self.logger.info("Secrets successfully exported")
-        else:
-            self.logger.info("No secrets to export")
 
     def kv_copy_secret(self):
         """
@@ -336,9 +309,7 @@ class VaultManagerKV:
             return False
         self.logger.debug("Module " + self.module_name + " started")
         try:
-            if self.parsed_args.export:
-                self.kv_export()
-            elif self.parsed_args.copy_path:
+            if self.parsed_args.copy_path:
                 self.kv_copy_path()
             elif self.parsed_args.copy_secret:
                 self.kv_copy_secret()
