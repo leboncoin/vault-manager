@@ -130,53 +130,37 @@ class VaultManager:
     def fetch_argument_values(self):
         """
         Fetch arguments values from env vars if needed
-
-        return: bool
         """
         self.logger.debug("Fetch arguments values")
-        # Optional args
+
+        self.logger.debug("Fetch Vault address")
+        if not self.parsed_arguments.vault_addr:
+            if os.getenv('VAULT_ADDR'):
+                self.parsed_arguments.vault_addr = os.getenv('VAULT_ADDR')
+
         self.logger.debug("Fetch Vault target address")
         if not self.parsed_arguments.vault_target_addr:
             if os.getenv('VAULT_TARGET_ADDR'):
                 self.parsed_arguments.vault_target_address = os.getenv(
                     'VAULT_TARGET_ADDR')
+
+        self.logger.debug("Fetch Vault token")
+        if not self.parsed_arguments.vault_token:
+            if os.getenv('VAULT_TOKEN'):
+                self.parsed_arguments.vault_token = os.getenv('VAULT_TOKEN')
+        else:
+            self.logger.debug("Asking for Vault token")
+            self.parsed_arguments.vault_token = getpass.getpass("Vault token: ")
+
         self.logger.debug("Fetch Vault target token")
         if not self.parsed_arguments.vault_target_token:
             if os.getenv('VAULT_TARGET_TOKEN'):
                 self.parsed_arguments.vault_target_token = os.getenv(
                     'VAULT_TARGET_TOKEN')
-        elif self.parsed_arguments.vault_target_token and not \
-                self.parsed_arguments.vault_target_addr:
-            self.logger.warning(
-                "Cannot set Vault target token without Vault target address")
-            return False
-
-        # Mandatory args
-        self.logger.debug("Fetch Vault address")
-        if not self.parsed_arguments.vault_addr:
-            if os.getenv('VAULT_ADDR'):
-                self.parsed_arguments.vault_address = os.getenv('VAULT_ADDR')
-            else:
-                self.logger.error("Value for Vault address must be set")
-                return False
-        self.logger.debug("Fetch Vault token")
-        if not self.parsed_arguments.vault_token:
-            if os.getenv('VAULT_TOKEN'):
-                self.parsed_arguments.vault_token = os.getenv('VAULT_TOKEN')
-            else:
-                self.logger.error("Value for Vault token must be set")
-                return False
         else:
-            self.logger.debug("Asking for Vault token")
-            self.parsed_arguments.vault_token = getpass.getpass("Vault token: ")
-
-        # Fetch of target token if needed. Here to respect a logical order
-        if self.parsed_arguments.vault_target_token:
             self.logger.debug("Asking for Vault target token")
             self.parsed_arguments.vault_target_token = getpass.getpass(
                 "Vault target token: ")
-        self.logger.debug(self.parsed_arguments)
-        return True
 
     def initialize_arg_parser(self):
         """
@@ -209,8 +193,9 @@ class VaultManager:
                                                      subparsers)
         self.parsed_arguments = self.arg_parser.parse_args()
         self.adjust_log_level()
+        self.fetch_argument_values()
         self.logger.debug("Parsed arguments: " + str(self.parsed_arguments))
-        if len(sys.argv) <= 2 or not self.fetch_argument_values():
+        if len(sys.argv) <= 2:
             print()
             print(self.arg_parser.print_help())
         else:

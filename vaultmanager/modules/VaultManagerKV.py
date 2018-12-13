@@ -2,8 +2,10 @@ import os
 import logging
 try:
     from lib.VaultClient import VaultClient
+    import lib.utils as utils
 except ImportError:
     from vaultmanager.lib.VaultClient import VaultClient
+    import vaultmanager.lib.utils as utils
 
 
 class VaultManagerKV:
@@ -25,6 +27,26 @@ class VaultManagerKV:
         self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
         self.logger.debug("Initializing VaultManagerKV")
         self.initialize_subparser(subparsers)
+
+    def connect_to_vault(self, vault_addr, vault_token):
+        """
+        Connect to a Vault instance
+
+        :param vault_addr: Vault URL
+        :type vault_addr: str
+        :param vault_token: Vault token
+        :type vault_token: str
+        :return: VaultClient
+        """
+        self.logger.debug("Connecting to Vault instance '%s'" % vault_addr)
+        vault_client = VaultClient(
+            self.base_logger,
+            dry=self.parsed_args.dry_run,
+            vault_addr=vault_addr,
+            skip_tls=self.parsed_args.skip_tls
+        )
+        vault_client.authenticate(vault_token)
+        return vault_client
 
     def initialize_subparser(self, subparsers):
         """
@@ -63,47 +85,27 @@ class VaultManagerKV:
                                     metavar="PATH_TO_DELETE")
         self.subparser.set_defaults(module_name=self.module_name)
 
-    def check_env_vars(self):
-        """
-        Check if all needed env vars are set
-
-        :return: bool
-        """
-        self.logger.debug("Checking env variables")
-        needed_env_vars_1 = ["VAULT_ADDR", "VAULT_TOKEN"]
-        needed_env_vars_2 = needed_env_vars_1 + ["VAULT_TARGET_ADDR",
-                                                 "VAULT_TARGET_TOKEN"]
-        if self.parsed_args.delete:
-            if not all(env_var in os.environ for env_var in needed_env_vars_1):
-                self.logger.critical("The following env vars must be set")
-                self.logger.critical(str(needed_env_vars_1))
-                return False
-        else:
-            if not all(env_var in os.environ for env_var in needed_env_vars_2):
-                self.logger.critical("The following env vars must be set")
-                self.logger.critical(str(needed_env_vars_2))
-                return False
-        self.logger.debug("All env vars are set")
-        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
-        return True
-
-    def read_from_vault(self, path_to_read):
+    def read_from_vault(self, path_to_read, vault_client=None):
         """
         Read secret tree from Vault
 
         :param path_to_read: secret path to read and return
         :type path_to_read: str
+        :param vault_client: VaultClient instance
+        :type vault_client: VaultClient
         :return dict(dict)
         """
         self.logger.debug("Reading kv tree")
-        vault_client = VaultClient(
-            self.base_logger,
-            dry=self.parsed_args.dry_run,
-            skip_tls=self.parsed_args.skip_tls
-        )
-        vault_client.authenticate()
+        # TODO: to delete this if
+        if not vault_client:
+            vault_client = VaultClient(
+                self.base_logger,
+                dry=self.parsed_args.dry_run,
+                skip_tls=self.parsed_args.skip_tls
+            )
+            vault_client.authenticate()
         kv_full = {}
-        kv_list = vault_client.get_secrets_tree(
+        kv_list = vault_client.secrets_tree_list(
             path_to_read
         )
         self.logger.debug("Secrets found: " + str(kv_list))
@@ -131,9 +133,9 @@ class VaultManagerKV:
         )
         vault_client.authenticate(os.environ["VAULT_TARGET_TOKEN"])
         for secret in exported_kv:
-            secret_target_path = self.__list_to_string(
-                target_path.split('/') + secret.split('/')[len(exported_path.split('/')):]
-                , separator="/"
+            secret_target_path = utils.list_to_string(
+                target_path.split('/') + secret.split('/')[len(exported_path.split('/')):],
+                separator="/"
             )
             self.logger.debug(
                 "Exporting secret: " + secret + " to " + secret_target_path
@@ -141,23 +143,98 @@ class VaultManagerKV:
             vault_client.write(secret_target_path, exported_kv[secret],
                                hide_all=True)
 
-    def delete_from_vault(self, kv_to_delete):
+    def delete_from_vault(self, kv_to_delete, vault_client=None):
         """
         Delete all secrets at and under specified path
 
         :param kv_to_delete: list of all secrets paths to delete
         :type kv_to_delete: list
+        :param vault_client: VaultClient instance
+        :type vault_client: VaultClient
         """
         self.logger.debug("Deleting secrets from " + os.environ["VAULT_ADDR"])
-        vault_client = VaultClient(
-            self.base_logger,
-            dry=self.parsed_args.dry_run,
-            skip_tls=self.parsed_args.skip_tls
-        )
-        vault_client.authenticate()
+        # TODO: to delete this if
+        if not vault_client:
+            vault_client = VaultClient(
+                self.base_logger,
+                dry=self.parsed_args.dry_run,
+                skip_tls=self.parsed_args.skip_tls
+            )
+            vault_client.authenticate()
         for secret in kv_to_delete:
-            self.logger.debug("Deleting " + secret)
+            self.logger.info("Deleting '" + secret + "'")
             vault_client.delete(secret)
+
+    def kv_export(self):
+        """
+        Method running the export function of KV module
+        """
+        self.logger.info("Exporting %s from %s to %s" %
+                         (
+                             self.parsed_args.export[0],
+                             os.environ["VAULT_ADDR"],
+                             os.environ["VAULT_TARGET_ADDR"]
+                         )
+                         )
+        exported_kv = self.read_from_vault(self.parsed_args.export[0])
+        if len(exported_kv):
+            self.push_to_vault(self.parsed_args.export[0], exported_kv,
+                               self.parsed_args.export[0])
+            self.logger.info("Secrets successfully exported")
+        else:
+            self.logger.info("No secrets to export")
+
+    def kv_copy(self):
+        """
+        Method running the copy function of KV module
+        """
+        self.logger.info("Copying %s from %s to %s on %s" %
+                         (
+                             self.parsed_args.copy[0],
+                             os.environ["VAULT_ADDR"],
+                             self.parsed_args.copy[1],
+                             os.environ["VAULT_TARGET_ADDR"]
+                         )
+                         )
+        exported_kv = self.read_from_vault(self.parsed_args.copy[0])
+        if len(exported_kv):
+            self.push_to_vault(self.parsed_args.copy[0], exported_kv,
+                               self.parsed_args.copy[1])
+            self.logger.info("Secrets successfully copied")
+        else:
+            self.logger.info("No secrets to copy")
+
+    def kv_delete(self):
+        """
+        Method running the delete function of KV module
+        """
+        self.logger.debug("KV Delete starting")
+
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
+        vault_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
+        self.logger.info("Deleting all secrets at and under %s at %s" %
+                         (self.parsed_args.delete[0],
+                          os.environ["VAULT_ADDR"]))
+        exported_kv = self.read_from_vault(
+            self.parsed_args.delete[0], vault_client=vault_client
+        )
+        if len(exported_kv):
+            self.delete_from_vault(exported_kv, vault_client=vault_client)
+            self.logger.debug("Secrets successfully deleted")
+        else:
+            self.logger.info("No secrets to delete")
 
     def run(self, arg_parser, parsed_args):
         """
@@ -169,79 +246,19 @@ class VaultManagerKV:
         """
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser
-        if not self.check_env_vars():
-            return False
-        if not self.parsed_args.export and not self.parsed_args.copy \
-                and not self.parsed_args.delete:
+        if not any([self.parsed_args.export, self.parsed_args.copy,
+                    self.parsed_args.delete]):
             self.logger.error("One argument should be specified")
             self.subparser.print_help()
             return False
         self.logger.debug("Module " + self.module_name + " started")
-        if self.parsed_args.export:
-            self.logger.info("Exporting %s from %s to %s" %
-                             (
-                                 self.parsed_args.export[0],
-                                 os.environ["VAULT_ADDR"],
-                                 os.environ["VAULT_TARGET_ADDR"]
-                             )
-                             )
-            exported_kv = self.read_from_vault(self.parsed_args.export[0])
-            if len(exported_kv):
-                self.push_to_vault(self.parsed_args.export[0], exported_kv,
-                                   self.parsed_args.export[0])
-                self.logger.info("Secrets successfully exported")
-            else:
-                self.logger.info("No secrets to export")
-        elif self.parsed_args.copy:
-            self.logger.info("Copying %s from %s to %s on %s" %
-                             (
-                                 self.parsed_args.copy[0],
-                                 os.environ["VAULT_ADDR"],
-                                 self.parsed_args.copy[1],
-                                 os.environ["VAULT_TARGET_ADDR"]
-                             )
-                             )
-            exported_kv = self.read_from_vault(self.parsed_args.copy[0])
-            if len(exported_kv):
-                self.push_to_vault(self.parsed_args.copy[0], exported_kv,
-                                   self.parsed_args.copy[1])
-                self.logger.info("Secrets successfully copied")
-            else:
-                self.logger.info("No secrets to copy")
-        elif self.parsed_args.delete:
-            self.logger.info("Deleting all secrets at and under %s at %s" %
-                             (self.parsed_args.delete[0],
-                              os.environ["VAULT_ADDR"]))
-            exported_kv = self.read_from_vault(self.parsed_args.delete[0])
-            if len(exported_kv):
-                self.delete_from_vault(exported_kv)
-                self.logger.debug("Secrets successfully deleted")
-            else:
-                self.logger.info("No secrets to delete")
-
-
-    def __list_to_string(self, lst, delimiter="", separator=","):
-        """
-        Convert a list to string
-
-        :param lst: list to serialize
-        :type lst: list
-        :param delimiter: quoting string
-        :type delimiter: str
-        :param separator: separator between list elements
-        :type separator: str
-
-        :return: str
-        """
-        self.logger.debug("Converting list " + str(lst))
-        lst = [elem for elem in lst if lst]
-        target = ""
-        for idx, elem in enumerate(lst):
-            if idx != 0:
-                target += separator
-            target += delimiter + elem + delimiter
-        self.logger.debug("Returning: " + target)
-        return target
-
-
-
+        try:
+            if self.parsed_args.export:
+                self.kv_export()
+            elif self.parsed_args.copy:
+                self.kv_copy()
+            elif self.parsed_args.delete:
+                self.kv_delete()
+        except ValueError as e:
+            self.logger.error(str(e) + "\n")
+            self.arg_parser.print_help()

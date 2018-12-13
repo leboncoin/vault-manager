@@ -549,6 +549,7 @@ class VaultClient:
             verify=(not self.skip_tls)
         )
 
+    # TODO: should always receive a Vault token
     def authenticate(self, vault_token=None):
         """
         Vault authentication
@@ -608,6 +609,7 @@ class VaultClient:
 
     def get_secrets_tree(self, path):
         """
+        DEPRECATED
         Get the secrets tree for the given path
 
         :param path: path to check
@@ -622,6 +624,7 @@ class VaultClient:
 
     def get_secrets_tree_recursive(self, path):
         """
+        DEPRECATED
         Recursively browse a path and find secrets
 
         :param path: path to browse
@@ -635,5 +638,58 @@ class VaultClient:
                 if p.endswith("/"):
                     secrets += self.get_secrets_tree_recursive(path + "/" + p)
                 else:
+                    secrets.append(path + "/" + p)
+        return [secret.replace("//", "/") for secret in secrets]
+
+    def secrets_tree_list(self, path, path_excluded=[]):
+        """
+        List all secrets at given path
+
+        :param path: Secrets path to list
+        :type path: str
+        :param path_excluded: List of path to exclude from list
+        :type path_excluded: list
+        :return: list
+        """
+        secrets_list = []
+        secrets_list += self.secrets_tree_list_recursive(path, path_excluded)
+        return secrets_list
+
+    def secrets_tree_list_recursive(self, path, path_excluded):
+        """
+        Recursive method associated to secrets_tree_list
+
+        :param path: Secrets path to list
+        :type path: str
+        :param path_excluded: List of path to exclude from list
+        :type path_excluded: list
+        """
+        secrets = []
+        # if path is in in path_excluded we return
+        for p in path_excluded:
+            if path.startswith(p):
+                return []
+
+        # If path is a folder we continue else id it's a secret,
+        # we return the secret path
+        listed = self.list(path)
+        if len(listed):
+            listed = listed["keys"]
+        else:
+            if len(self.read(path)):
+                self.logger.debug("'%s' is a secret. Will be deleted" % path)
+                return [path]
+
+        if len(listed):
+            for p in listed:
+                avoid = False
+                for t_e in path_excluded:
+                    if (path + "/" + p).replace("//", "/").startswith(t_e):
+                        avoid = True
+                if p.endswith("/") and not avoid:
+                    secrets += self.secrets_tree_list_recursive(
+                        path + "/" + p, path_excluded
+                    )
+                elif not avoid:
                     secrets.append(path + "/" + p)
         return [secret.replace("//", "/") for secret in secrets]
