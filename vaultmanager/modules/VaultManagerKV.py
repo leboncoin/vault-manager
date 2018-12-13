@@ -70,7 +70,7 @@ class VaultManagerKV:
                                     $VAULT_TARGET_TOKEN is used for
                                     $VAULT_TARGET_ADDR""",
                                     metavar="PATH_TO_EXPORT")
-        self.subparser.add_argument("--copy", nargs=2,
+        self.subparser.add_argument("--copy-path", nargs=2,
                                     help="""copy kv store from specified path
                                     COPY_FROM_PATH from $VAULT_ADDR instance
                                     to $VAULT_TARGET_ADDR at path COPY_TO_PATH.
@@ -78,6 +78,11 @@ class VaultManagerKV:
                                     $VAULT_TARGET_TOKEN is used for
                                     $VAULT_TARGET_ADDR""",
                                     metavar=("COPY_FROM_PATH", "COPY_TO_PATH"))
+        self.subparser.add_argument("--copy-secret", nargs=2,
+                                    help="""copy one secret from  $VAULT_ADDR
+                                    instance at SECRET_TO_COPY to
+                                    $VAULT_TARGET_ADDR at SECRET_TARGET""",
+                                    metavar=("SECRET_TO_COPY", "SECRET_TARGET"))
         self.subparser.add_argument("--delete", nargs=1,
                                     help="""delete PATH_TO_DELETE and all
                                     secrets under it from $VAULT_ADDR instance.
@@ -113,7 +118,7 @@ class VaultManagerKV:
             kv_full[kv] = vault_client.read_secret(kv)
         return kv_full
 
-    def push_to_vault(self, exported_path, exported_kv, target_path):
+    def push_to_vault(self, exported_path, exported_kv, target_path, vault_client=None):
         """
         Push exported kv to Vault
 
@@ -125,19 +130,22 @@ class VaultManagerKV:
         :type exported_kv: dict
         """
         self.logger.debug("Pushing exported kv to Vault")
-        vault_client = VaultClient(
-            self.base_logger,
-            dry=self.parsed_args.dry_run,
-            vault_addr=os.environ["VAULT_TARGET_ADDR"],
-            skip_tls=self.parsed_args.skip_tls
-        )
-        vault_client.authenticate(os.environ["VAULT_TARGET_TOKEN"])
+        if not vault_client:
+            vault_client = VaultClient(
+                self.base_logger,
+                dry=self.parsed_args.dry_run,
+                vault_addr=os.environ["VAULT_TARGET_ADDR"],
+                skip_tls=self.parsed_args.skip_tls
+            )
+            vault_client.authenticate(os.environ["VAULT_TARGET_TOKEN"])
         for secret in exported_kv:
+
             secret_target_path = utils.list_to_string(
+                self.logger,
                 target_path.split('/') + secret.split('/')[len(exported_path.split('/')):],
                 separator="/"
             )
-            self.logger.debug(
+            self.logger.info(
                 "Exporting secret: " + secret + " to " + secret_target_path
             )
             vault_client.write(secret_target_path, exported_kv[secret],
@@ -184,31 +192,104 @@ class VaultManagerKV:
         else:
             self.logger.info("No secrets to export")
 
-    def kv_copy(self):
+    def kv_copy_secret(self):
         """
-        Method running the copy function of KV module
+        Method running the copy_secret function of KV module
         """
+        self.logger.debug("KV copy secret starting")
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]},
+             {"key": "vault_target_addr", "exc": [None, '']},
+             {"key": "vault_target_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
         self.logger.info("Copying %s from %s to %s on %s" %
                          (
-                             self.parsed_args.copy[0],
-                             os.environ["VAULT_ADDR"],
-                             self.parsed_args.copy[1],
-                             os.environ["VAULT_TARGET_ADDR"]
+                             self.parsed_args.copy_secret[0],
+                             self.parsed_args.vault_addr,
+                             self.parsed_args.copy_secret[1],
+                             self.parsed_args.vault_target_addr
                          )
                          )
-        exported_kv = self.read_from_vault(self.parsed_args.copy[0])
-        if len(exported_kv):
-            self.push_to_vault(self.parsed_args.copy[0], exported_kv,
-                               self.parsed_args.copy[1])
-            self.logger.info("Secrets successfully copied")
-        else:
-            self.logger.info("No secrets to copy")
+        vault_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
+        secret_to_copy = vault_client.read(self.parsed_args.copy_secret[0])
+        if not len(secret_to_copy):
+            raise AttributeError("'%s' is not a valid secret. If you're trying "
+                                 "to copy a path, use --copy-path instead" %
+                                 self.parsed_args.copy_secret[0])
+        vault_target_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
+        vault_target_client.write(
+            self.parsed_args.copy_secret[1], secret_to_copy, hide_all=True
+        )
+        self.logger.info("Secret '%s' successfully copied" %
+                         self.parsed_args.copy_secret[0])
+
+    def kv_copy_path(self):
+        """
+        Method running the copy_path function of KV module
+        """
+        self.logger.debug("KV copy path starting")
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]},
+             {"key": "vault_target_addr", "exc": [None, '']},
+             {"key": "vault_target_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
+        self.logger.info("Copying %s from %s to %s on %s" %
+                         (
+                             self.parsed_args.copy_path[0],
+                             self.parsed_args.vault_addr,
+                             self.parsed_args.copy_path[1],
+                             self.parsed_args.vault_target_addr
+                         )
+                         )
+        vault_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
+        exported_kv = self.read_from_vault(
+            self.parsed_args.copy_path[0], vault_client
+        )
+        if not len(exported_kv):
+            raise AttributeError("No path to copy")
+        if len(exported_kv) == 1 and list(exported_kv.keys())[0] == self.parsed_args.copy_path[0]:
+            raise AttributeError(
+                "--copy-path should not be used to copy individual secrets."
+                " Use --copy-secret instead"
+            )
+
+        vault_target_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
+        self.push_to_vault(self.parsed_args.copy_path[0], exported_kv,
+                           self.parsed_args.copy_path[1],
+                           vault_target_client)
+        self.logger.info("Path successfully copied")
 
     def kv_delete(self):
         """
         Method running the delete function of KV module
         """
-        self.logger.debug("KV Delete starting")
+        self.logger.debug("KV delete starting")
 
         missing_args = utils.keys_exists_in_dict(
             self.logger, vars(self.parsed_args),
@@ -246,8 +327,8 @@ class VaultManagerKV:
         """
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser
-        if not any([self.parsed_args.export, self.parsed_args.copy,
-                    self.parsed_args.delete]):
+        if not any([self.parsed_args.export, self.parsed_args.copy_path,
+                    self.parsed_args.copy_secret, self.parsed_args.delete]):
             self.logger.error("One argument should be specified")
             self.subparser.print_help()
             return False
@@ -255,10 +336,14 @@ class VaultManagerKV:
         try:
             if self.parsed_args.export:
                 self.kv_export()
-            elif self.parsed_args.copy:
-                self.kv_copy()
+            elif self.parsed_args.copy_path:
+                self.kv_copy_path()
+            elif self.parsed_args.copy_secret:
+                self.kv_copy_secret()
             elif self.parsed_args.delete:
                 self.kv_delete()
         except ValueError as e:
             self.logger.error(str(e) + "\n")
             self.arg_parser.print_help()
+        except AttributeError as e:
+            self.logger.error(str(e))
