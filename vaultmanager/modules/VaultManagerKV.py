@@ -79,7 +79,15 @@ class VaultManagerKV:
                                     help="""delete PATH_TO_DELETE and all
                                     secrets under it from $VAULT_ADDR instance.
                                     $VAULT_TOKEN is used for $VAULT_ADDR""",
-                                    metavar="PATH_TO_DELETE")
+                                    metavar="PATHS_TO_DELETE")
+        self.subparser.add_argument("--count", nargs='+',
+                                    help="""count all secrets on $VAULT_ADDR
+                                    instance under SECRET_PATHS""",
+                                    metavar="SECRET_PATHS")
+        self.subparser.add_argument("-e", "--exclude", nargs='+',
+                                    help="""paths to excludes from count or
+                                    find-duplicates""",
+                                    metavar="SECRET_PATHS")
         self.subparser.set_defaults(module_name=self.module_name)
 
     def read_from_vault(self, path_to_read, vault_client):
@@ -266,6 +274,42 @@ class VaultManagerKV:
             else:
                 self.logger.error("No secrets to delete at '%s'" % to_delete)
 
+    def kv_count(self):
+        """
+        Method running the count function of KV module
+        """
+        self.logger.debug("KV count starting")
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
+        vault_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
+        total_secrets = 0
+        total_kv = 0
+        excluded = self.parsed_args.exclude or []
+        for path in self.parsed_args.count:
+            self.logger.info("At path '" + path + "'")
+            all_secrets = vault_client.secrets_tree_list(path, excluded)
+            self.logger.info("\tSecrets count: " + str(len(all_secrets)))
+            total_secrets += len(all_secrets)
+            kv_count = 0
+            for secret_path in all_secrets:
+                kv_count += len(vault_client.read(secret_path))
+            total_kv += kv_count
+            self.logger.info("\tK/V count: " + str(kv_count))
+        self.logger.info("Total")
+        self.logger.info("\tSecrets count: " + str(total_secrets))
+        self.logger.info("\tK/V count: " + str(total_kv))
+
     def run(self, arg_parser, parsed_args):
         """
         Module entry point
@@ -276,7 +320,7 @@ class VaultManagerKV:
         """
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser
-        if not any([self.parsed_args.copy_path,
+        if not any([self.parsed_args.copy_path, self.parsed_args.count,
                     self.parsed_args.copy_secret, self.parsed_args.delete]):
             self.logger.error("One argument should be specified")
             self.subparser.print_help()
@@ -289,6 +333,8 @@ class VaultManagerKV:
                 self.kv_copy_secret()
             elif self.parsed_args.delete:
                 self.kv_delete()
+            elif self.parsed_args.count:
+                self.kv_count()
         except ValueError as e:
             self.logger.error(str(e) + "\n")
             self.arg_parser.print_help()
