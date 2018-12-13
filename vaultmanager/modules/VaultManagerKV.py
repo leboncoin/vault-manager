@@ -276,7 +276,7 @@ class VaultManagerKV:
         """
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser
-        if not any([self.parsed_args.export, self.parsed_args.copy_path,
+        if not any([self.parsed_args.copy_path,
                     self.parsed_args.copy_secret, self.parsed_args.delete]):
             self.logger.error("One argument should be specified")
             self.subparser.print_help()
