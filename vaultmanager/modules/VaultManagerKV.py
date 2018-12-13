@@ -83,7 +83,7 @@ class VaultManagerKV:
                                     instance at SECRET_TO_COPY to
                                     $VAULT_TARGET_ADDR at SECRET_TARGET""",
                                     metavar=("SECRET_TO_COPY", "SECRET_TARGET"))
-        self.subparser.add_argument("--delete", nargs=1,
+        self.subparser.add_argument("--delete", nargs='+',
                                     help="""delete PATH_TO_DELETE and all
                                     secrets under it from $VAULT_ADDR instance.
                                     $VAULT_TOKEN is used for $VAULT_ADDR""",
@@ -305,17 +305,19 @@ class VaultManagerKV:
             self.parsed_args.vault_addr,
             self.parsed_args.vault_token
         )
-        self.logger.info("Deleting all secrets at and under %s at %s" %
-                         (self.parsed_args.delete[0],
-                          os.environ["VAULT_ADDR"]))
-        exported_kv = self.read_from_vault(
-            self.parsed_args.delete[0], vault_client=vault_client
-        )
-        if len(exported_kv):
-            self.delete_from_vault(exported_kv, vault_client=vault_client)
-            self.logger.debug("Secrets successfully deleted")
-        else:
-            self.logger.info("No secrets to delete")
+        for to_delete in self.parsed_args.delete:
+            self.logger.info("Deleting all secrets at and under %s at %s" %
+                             (to_delete,
+                              os.environ["VAULT_ADDR"]))
+            exported_kv = self.read_from_vault(
+                to_delete, vault_client=vault_client
+            )
+            if len(exported_kv):
+                self.delete_from_vault(exported_kv, vault_client=vault_client)
+                self.logger.debug("Secrets at '%s' successfully deleted" %
+                                  to_delete)
+            else:
+                self.logger.error("No secrets to delete at '%s'" % to_delete)
 
     def run(self, arg_parser, parsed_args):
         """
