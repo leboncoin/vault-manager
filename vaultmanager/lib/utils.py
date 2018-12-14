@@ -1,6 +1,28 @@
 #
 # Utils methods
 #
+import os
+
+
+def get_var_or_env(logger, variable, env_variable):
+    """
+    Return variable if exists else return value from env var env_variable
+    if doesn't exists, return None
+
+    :param logger: logger instance
+    :type logger: logger
+    :param variable: Look for value in this variable
+    :type variable: str
+    :param env_variable: Environment variable name
+    :type env_variable: str
+
+    :return: str or None
+    """
+    logger.debug("get_var_or_env for '%s'" % env_variable)
+    if variable:
+        logger.debug("Returning variable value")
+        return variable
+    return os.getenv(env_variable, None)
 
 
 def list_to_string(logger, lst, delimiter="", separator=","):

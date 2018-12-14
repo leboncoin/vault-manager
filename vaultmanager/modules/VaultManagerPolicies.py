@@ -3,8 +3,10 @@ import glob
 import logging
 try:
     from lib.VaultClient import VaultClient
+    import lib.utils as utils
 except ImportError:
     from vaultmanager.lib.VaultClient import VaultClient
+    import vaultmanager.lib.utils as utils
 
 
 class VaultManagerPolicies:
@@ -43,59 +45,38 @@ class VaultManagerPolicies:
         self.subparser = \
             subparsers.add_parser(self.module_name,
                                   help=self.module_name + ' management')
-        self.subparser.add_argument("--pull", action='store_true',
-                                    help="Pull distant policies from Vault")
-        self.subparser.add_argument("--push", action='store_true',
-                                    help="Push local policies to Vault")
+        self.subparser.add_argument(
+            "--pull", action='store_true',
+            help="Pull distant policies from Vault"
+        )
+        self.subparser.add_argument(
+            "--push", action='store_true', help="Push local policies to Vault"
+        )
+        self.subparser.add_argument(
+            "--vault-config", nargs='?',
+            help="Specify location of vault_config folder"
+        )
         self.subparser.set_defaults(module_name=self.module_name)
-
-    def get_subparser(self):
-        """
-        Module subparser getter
-
-        :return: argparse.ArgumentParser.add_subparsers().add_parser()
-        """
-        return self.subparser
 
     def check_args_integrity(self):
         """
         Checking provided arguments integrity
         """
         self.logger.debug("Checking arguments integrity")
-        if self.parsed_args.pull and self.parsed_args.push:
+        if all(self.parsed_args.pull, self.parsed_args.push):
             self.logger.critical("push and pull args cannot "
                                  "be specified at the same time")
             return False
-        elif not self.parsed_args.pull and not self.parsed_args.push:
+        elif not any(self.parsed_args.pull, self.parsed_args.push):
             self.logger.critical("You must specify pull or push")
             return False
         return True
 
-    def check_env_vars(self):
-        """
-        Check if all needed env vars are set
-
-        :return: bool
-        """
-        self.logger.debug("Checking env variables")
-        needed_env_vars = ["VAULT_ADDR", "VAULT_TOKEN", "VAULT_CONFIG"]
-        if not all(env_var in os.environ for env_var in needed_env_vars):
-            self.logger.critical("The following env vars must be set")
-            self.logger.critical(str(needed_env_vars))
-            return False
-        self.logger.debug("All env vars are set")
-        if not os.path.isdir(os.environ["VAULT_CONFIG"]):
-            self.logger.critical(
-                os.environ["VAULT_CONFIG"] + " is not a valid folder")
-            return False
-        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
-        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
-        return True
-
-    def pull_policies(self):
+    def policies_pull(self):
         """
         Pull policies from vault
         """
+        self.logger.info("Pulling Policies from Vault")
         self.logger.debug("Pulling policies")
         distant_policies = self.vault_client.policy_list()
         self.logger.info("Distant policies found:" + str(distant_policies))
@@ -120,10 +101,11 @@ class VaultManagerPolicies:
                 self.logger.info("Policy " + policy_path + " saved")
         self.logger.info("Policies fetched in policies folder")
 
-    def push_policies(self):
+    def policies_push(self):
         """
         Push all policies from policies folder to Vault
         """
+        self.logger.info("Pushing Policies to Vault")
         self.logger.debug("Push all policies")
         distant_policies = self.vault_client.policy_list()
         local_policies = []
@@ -167,21 +149,37 @@ class VaultManagerPolicies:
         if not self.check_args_integrity():
             self.arg_parser.print_help()
             return False
-        if not self.check_env_vars():
+        self.parsed_args.vault_config = utils.get_var_or_env(
+            self.logger, self.parsed_args.vault_config, "VAULT_CONFIG"
+        )
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]},
+             {"key": "vault_config", "exc": [None, False, '']}]
+        )
+        if len(missing_args):
+            self.logger.error("Following arguments are missing %s\n" %
+                              [k['key'].replace("_", "-") for k in missing_args])
+            if 'vault-config' in [k['key'].replace("_", "-") for k in missing_args]:
+                self.subparser.print_help()
+            else:
+                self.arg_parser.print_help()
             return False
-        self.policies_folder = os.path.join(os.environ["VAULT_CONFIG"],
-                                            "policies")
+        self.logger.debug("Vault config folder: %s" % self.parsed_args.vault_config)
+        self.policies_folder = os.path.join(
+            self.parsed_args.vault_config, "policies"
+        )
         if not os.path.isdir(self.policies_folder):
             os.mkdir(self.policies_folder)
         self.vault_client = VaultClient(
             self.base_logger,
+            vault_addr=self.parsed_args.vault_addr,
             dry=self.parsed_args.dry_run,
             skip_tls=self.parsed_args.skip_tls
         )
         self.vault_client.authenticate()
         if self.parsed_args.pull:
-            self.logger.info("Pulling Policies from Vault")
-            self.pull_policies()
+            self.policies_pull()
         if self.parsed_args.push:
-            self.logger.info("Pushing Policies to Vault")
-            self.push_policies()
+            self.policies_push()

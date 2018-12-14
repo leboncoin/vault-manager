@@ -481,6 +481,7 @@ class VaultManagerLDAP:
             return False
         if not self.check_env_vars():
             return False
+        # TODO: use get var or env
         self.policies_folder = os.path.join(os.environ["VAULT_CONFIG"],
                                             "policies")
         self.user_policies_folder = os.path.join(self.policies_folder, "user")
