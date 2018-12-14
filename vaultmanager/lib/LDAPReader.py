@@ -53,10 +53,12 @@ class LDAPReader:
         try:
             resp_type, resp_data, resp_msgid, resp_ctrls = self.ldap_connector.simple_bind_s(self.ldap_username, self.ldap_password)
         except ldap.INVALID_CREDENTIALS as e:
-            self.logger.critical("Your username or password is incorrect: " + str(e))
+            self.logger.critical(
+                "LDAP: Your username or password is incorrect: " + str(e)
+            )
             return False
         except ldap.SERVER_DOWN as e:
-            self.logger.critical("The server appears to be down: " + str(e))
+            self.logger.critical("LDAP: The server appears to be down: " + str(e))
             return False
         except Exception as e:
             self.logger.critical(str(e))

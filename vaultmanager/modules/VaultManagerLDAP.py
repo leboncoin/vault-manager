@@ -4,9 +4,11 @@ import logging
 try:
     from lib.VaultClient import VaultClient
     from lib.LDAPReader import LDAPReader
+    import lib.utils as utils
 except ImportError:
     from vaultmanager.lib.VaultClient import VaultClient
     from vaultmanager.lib.LDAPReader import LDAPReader
+    import vaultmanager.lib.utils as utils
 
 
 class VaultManagerLDAP:
@@ -40,6 +42,27 @@ class VaultManagerLDAP:
         self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
         self.logger.debug("Initializing VaultManagerLDAP")
         self.initialize_subparser(subparsers)
+
+    # TODO: migrate in utils
+    def connect_to_vault(self, vault_addr, vault_token):
+        """
+        Connect to a Vault instance
+
+        :param vault_addr: Vault URL
+        :type vault_addr: str
+        :param vault_token: Vault token
+        :type vault_token: str
+        :return: VaultClient
+        """
+        self.logger.debug("Connecting to Vault instance '%s'" % vault_addr)
+        vault_client = VaultClient(
+            self.base_logger,
+            dry=self.parsed_args.dry_run,
+            vault_addr=vault_addr,
+            skip_tls=self.parsed_args.skip_tls
+        )
+        vault_client.authenticate(vault_token)
+        return vault_client
 
     def initialize_subparser(self, subparsers):
         """
@@ -178,7 +201,7 @@ class VaultManagerLDAP:
                 self.ldap_conf["ldap"]["password"]
             )
         except TypeError as e:
-            raise Exception("LDAP password does not exists in Vault at %s" %
+            raise Exception("LDAP password does not exists in env at %s" %
                             str(self.ldap_conf["ldap"]["password"]))
         ldap_reader = LDAPReader(self.base_logger,
                                  self.ldap_conf["ldap"]["server"],
@@ -265,10 +288,38 @@ class VaultManagerLDAP:
                 self.logger.info("Deleting user policy: " + policy_path)
                 os.remove(policy_path)
 
-    def manage_groups_in_vault_ldap_conf(self):
+    def ldap_list_groups(self):
         """
+        Method running the list-groups function of LDAP module
+        Display LDAP groups
+        """
+        self.logger.debug("LDAP list-groups starting")
+        self.logger.debug("Displaying LDAP groups")
+        groups = []
+        for user in self.ldap_users:
+            for group in self.ldap_users[user]:
+                if group not in groups:
+                    groups.append(group)
+        self.logger.info(str(sorted(groups)))
+
+    def ldap_create_policies(self):
+        """
+        Method running the create-policies function of LDAP module
+        """
+        self.logger.debug("LDAP create-policies starting")
+        self.logger.info("Creating LDAP policies")
+        self.create_groups_policies()
+        self.create_users_policies()
+        self.deleting_previous_policies()
+
+    def ldap_manage_ldap_groups(self):
+        """
+        Method running the manage-ldap-groups function of LDAP module
         Manage groups in Vault LDAP configuration
         """
+        self.logger.debug("LDAP manage-ldap-groups starting")
+        self.logger.info("Managing groups in Vault LDAP '%s' config" %
+                         self.parsed_args.manage_ldap_groups)
         self.logger.debug("Managing groups to Vault LDAP configuration")
         raw_vault_ldap_groups = self.vault_client.list('/auth/ldap/groups')
         existing_groups = []
@@ -285,7 +336,11 @@ class VaultManagerLDAP:
                              (str(policies), group))
             self.vault_client.write(
                 "/auth/ldap/groups/" + group,
-                {"policies": self.list_to_string(policies, separator="")}
+                {
+                    "policies": utils.list_to_string(
+                        self.logger, policies, separator=""
+                    )
+                }
             )
         self.logger.debug("Removing groups %s from Vault LDAP conf" %
                           str(existing_groups))
@@ -293,10 +348,14 @@ class VaultManagerLDAP:
             self.logger.info("Removing group %s from Vault LDAP conf" % group)
             self.vault_client.delete('/auth/ldap/groups/' + group)
 
-    def manage_users_in_vault_ldap_conf(self):
+    def ldap_manage_ldap_users(self):
         """
+        Method running the manage-ldap-users function of LDAP module
         Manage users in Vault LDAP configuration
         """
+        self.logger.debug("LDAP manage-ldap-users starting")
+        self.logger.info("Managing users in Vault LDAP '%s' config" %
+                         self.parsed_args.manage_ldap_users)
         self.logger.debug("Managing users to Vault LDAP configuration")
         raw_vault_ldap_users = self.vault_client.list('/auth/ldap/users')
         self.logger.debug("Users found: " + str(raw_vault_ldap_users))
@@ -333,62 +392,47 @@ class VaultManagerLDAP:
             self.logger.info("Removing user %s from Vault LDAP conf" % user)
             self.vault_client.delete('/auth/ldap/users/' + user)
 
-    def list_to_string(self, list_to_serialize, separator="'"):
+    def ldap_create_groups_secrets(self):
         """
-        Transform a list to a string
-
-        :param list_to_serialize: list to transform
-        :type list_to_serialize: list
-
-        :return: str
-        """
-        self.logger.debug("serializing list: " + str(list_to_serialize))
-        return str(list_to_serialize)\
-            .replace("[", "")\
-            .replace("]", "")\
-            .replace(" ", "")\
-            .replace("'", separator)
-
-    def list_ldap_groups(self):
-        """
-        Display LDAP groups
-        """
-        self.logger.debug("Displaying LDAP groups")
-        groups = []
-        for user in self.ldap_users:
-            for group in self.ldap_users[user]:
-                if group not in groups:
-                    groups.append(group)
-        self.logger.info(str(sorted(groups)))
-
-    def create_groups_secrets(self):
-        """
+        Method running the create-groups-secrets function of LDAP module
         Create a secret folder for each LDAP group under specified path
         """
+        self.logger.debug("LDAP create-groups-secrets starting")
+        self.logger.info("Creating groups folders under secret path '/%s'" %
+                         self.parsed_args.create_groups_secrets)
         self.logger.debug("Creating groups secrets under %s" %
                           self.parsed_args.create_groups_secrets)
         existing_folders = self.vault_client.list(
             self.parsed_args.create_groups_secrets
         )
         if len(existing_folders):
-            existing_folders = [e.replace("/", "") for e in existing_folders['keys']]
+            existing_folders = [e.replace("/", "") for e in
+                                existing_folders['keys']]
         self.logger.debug("Already existing folders: " + str(existing_folders))
         for group in self.conf["groups"]["groups_to_add"]:
             if group not in existing_folders:
                 self.logger.info("Creating folder: " + group)
                 self.vault_client.write(self.parsed_args.create_groups_secrets +
-                                        "/" + group + "/description", {group: "group private secrets space"})
+                                        "/" + group + "/description",
+                                        {group: "group private secrets space"})
         for group in existing_folders:
             if group not in self.conf["groups"]["groups_to_add"]:
-                tree = self.vault_client.get_secrets_tree(self.parsed_args.create_groups_secrets + "/" + group)
-                self.logger.info("Deleting folder " + group + " and associated secrets " + str(tree))
+                tree = self.vault_client.get_secrets_tree(
+                    self.parsed_args.create_groups_secrets + "/" + group)
+                self.logger.info(
+                    "Deleting folder " + group + " and associated secrets " + str(
+                        tree))
                 for secret in tree:
                     self.vault_client.delete(secret)
 
-    def create_users_secrets(self):
+    def ldap_create_users_secrets(self):
         """
+        Method running the create-users-secrets function of LDAP module
         Create a secret folder for each LDAP user under specified path
         """
+        self.logger.debug("LDAP create-users-secrets starting")
+        self.logger.info("Creating users folders under secret path '/%s'" %
+                         self.parsed_args.create_users_secrets)
         self.logger.debug("Creating users secrets under %s" %
                           self.parsed_args.create_users_secrets)
         enabled_users = []
@@ -402,16 +446,22 @@ class VaultManagerLDAP:
             self.parsed_args.create_users_secrets
         )
         if len(existing_folders):
-            existing_folders = [e.replace("/", "") for e in existing_folders['keys']]
+            existing_folders = [e.replace("/", "") for e in
+                                existing_folders['keys']]
         self.logger.debug("Already existing folders: " + str(existing_folders))
         for user in enabled_users:
             if user not in existing_folders:
                 self.logger.info("Creating folder: " + user)
-                self.vault_client.write(self.parsed_args.create_users_secrets + "/" + user + "/description", {user: "user private secrets space"})
+                self.vault_client.write(
+                    self.parsed_args.create_users_secrets + "/" + user + "/description",
+                    {user: "user private secrets space"})
         for user in existing_folders:
             if user not in enabled_users:
-                tree = self.vault_client.get_secrets_tree(self.parsed_args.create_users_secrets + "/" + user)
-                self.logger.info("Deleting folder " + user + " and associated secrets " + str(tree))
+                tree = self.vault_client.get_secrets_tree(
+                    self.parsed_args.create_users_secrets + "/" + user)
+                self.logger.info(
+                    "Deleting folder " + user + " and associated secrets " + str(
+                        tree))
                 for secret in tree:
                     self.vault_client.delete(secret)
 
@@ -441,6 +491,7 @@ class VaultManagerLDAP:
             return False
         self.vault_client = VaultClient(
             self.base_logger,
+            vault_addr=self.parsed_args.vault_addr,
             dry=self.parsed_args.dry_run,
             skip_tls=self.parsed_args.skip_tls
         )
@@ -448,28 +499,30 @@ class VaultManagerLDAP:
         if not self.get_ldap_data():
             return False
         if self.parsed_args.list_groups:
-            self.list_ldap_groups()
+            self.ldap_list_groups()
             return True
         if self.parsed_args.create_policies:
-            self.logger.info("Creating LDAP policies")
-            self.create_groups_policies()
-            self.create_users_policies()
-            self.deleting_previous_policies()
+            self.ldap_create_policies()
+            return True
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
+        self.vault_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
         if self.parsed_args.manage_ldap_groups:
-            self.logger.info("Managing groups in Vault LDAP '%s' config" %
-                             self.parsed_args.manage_ldap_groups)
-            self.manage_groups_in_vault_ldap_conf()
+            self.ldap_manage_ldap_groups()
         if self.parsed_args.manage_ldap_users:
-            self.logger.info("Managing users in Vault LDAP '%s' config" %
-                             self.parsed_args.manage_ldap_users)
-            self.manage_users_in_vault_ldap_conf()
+            self.ldap_manage_ldap_users()
         if self.parsed_args.create_groups_secrets:
-            self.logger.info("Creating groups folders under secret path '/%s'" %
-                             self.parsed_args.create_groups_secrets)
-            self.create_groups_secrets()
+            self.ldap_create_groups_secrets()
         if self.parsed_args.create_users_secrets:
-            self.logger.info("Creating users folders under secret path '/%s'" %
-                             self.parsed_args.create_users_secrets)
-            self.create_users_secrets()
-
-
+            self.ldap_create_users_secrets()
