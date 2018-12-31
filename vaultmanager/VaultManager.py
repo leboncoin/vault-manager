@@ -6,6 +6,10 @@ import logging
 import importlib
 import getpass
 import coloredlogs
+try:
+    import lib.utils as utils
+except ImportError:
+    import vaultmanager.lib.utils as utils
 
 
 class VaultManager:
@@ -125,6 +129,12 @@ class VaultManager:
             help='Prompt for Vault target token'
         )
 
+        self.arg_parser.add_argument(
+            "--vault-config", nargs='?',
+            default=None, const=None,
+            help="Specify location of vault_config folder"
+        )
+
     def fetch_argument_values(self):
         """
         Fetch arguments values from env vars if needed
@@ -132,33 +142,40 @@ class VaultManager:
         self.logger.debug("Fetch arguments values")
 
         self.logger.debug("Fetch Vault address")
-        if not self.parsed_arguments.vault_addr:
-            if os.getenv('VAULT_ADDR'):
-                self.parsed_arguments.vault_addr = os.getenv('VAULT_ADDR')
+        self.parsed_arguments.vault_addr = utils.get_var_or_env(
+            self.logger, self.parsed_arguments.vault_addr, "VAULT_ADDR"
+        )
 
         self.logger.debug("Fetch Vault target address")
-        if not self.parsed_arguments.vault_target_addr:
-            if os.getenv('VAULT_TARGET_ADDR'):
-                self.parsed_arguments.vault_target_address = os.getenv(
-                    'VAULT_TARGET_ADDR')
+        self.parsed_arguments.vault_target_addr = utils.get_var_or_env(
+            self.logger,
+            self.parsed_arguments.vault_target_addr, "VAULT_TARGET_ADDR"
+        )
+
+        self.logger.debug("Fetch Vault config folder path")
+        self.parsed_arguments.vault_config = utils.get_var_or_env(
+            self.logger, self.parsed_arguments.vault_config, "VAULT_CONFIG"
+        )
 
         self.logger.debug("Fetch Vault token")
-        if not self.parsed_arguments.vault_token:
-            if os.getenv('VAULT_TOKEN'):
-                self.parsed_arguments.vault_token = os.getenv('VAULT_TOKEN')
-        else:
+        if self.parsed_arguments.vault_token:
             self.logger.debug("Asking for Vault token")
             self.parsed_arguments.vault_token = getpass.getpass("Vault token: ")
+        else:
+            self.parsed_arguments.vault_token = utils.get_var_or_env(
+                self.logger, self.parsed_arguments.vault_token, "VAULT_TOKEN"
+            )
 
         self.logger.debug("Fetch Vault target token")
-        if not self.parsed_arguments.vault_target_token:
-            if os.getenv('VAULT_TARGET_TOKEN'):
-                self.parsed_arguments.vault_target_token = os.getenv(
-                    'VAULT_TARGET_TOKEN')
-        else:
+        if self.parsed_arguments.vault_target_token:
             self.logger.debug("Asking for Vault target token")
             self.parsed_arguments.vault_target_token = getpass.getpass(
                 "Vault target token: ")
+        else:
+            self.parsed_arguments.vault_target_token = utils.get_var_or_env(
+                self.logger,
+                self.parsed_arguments.vault_target_token, "VAULT_TARGET_TOKEN"
+            )
 
     def initialize_arg_parser(self):
         """

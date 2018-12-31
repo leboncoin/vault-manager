@@ -105,10 +105,6 @@ class VaultManagerLDAP:
             metavar="users_secrets_folder",
             help="Create a folder for each user in <users_secrets_folder>"
         )
-        self.subparser.add_argument(
-            "--vault-config", nargs='?',
-            help="Specify location of vault_config folder"
-        )
         self.subparser.set_defaults(module_name=self.module_name)
 
     def get_subparser(self):
@@ -463,9 +459,6 @@ class VaultManagerLDAP:
         if not self.check_args_integrity():
             self.subparser.print_help()
             return False
-        self.parsed_args.vault_config = utils.get_var_or_env(
-            self.logger, self.parsed_args.vault_config, "VAULT_CONFIG"
-        )
         missing_args = utils.keys_exists_in_dict(
             self.logger, vars(self.parsed_args),
             [{"key": "vault_addr", "exc": [None, '']},
@@ -475,10 +468,7 @@ class VaultManagerLDAP:
         if len(missing_args):
             self.logger.error("Following arguments are missing %s\n" %
                               [k['key'].replace("_", "-") for k in missing_args])
-            if 'vault-config' in [k['key'].replace("_", "-") for k in missing_args]:
-                self.subparser.print_help()
-            else:
-                self.arg_parser.print_help()
+            self.arg_parser.print_help()
             return False
         self.policies_folder = os.path.join(
             self.parsed_args.vault_config, "policies"
