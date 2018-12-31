@@ -278,6 +278,10 @@ class VaultClient:
         if len(match) == 1:
             self.logger.debug("Env var found: %s" % match[0])
             if not self.dry_run():
+                if match[0] not in os.environ:
+                    self.logger.error(
+                        "'%s' not found in environment" % match[0]
+                    )
                 return os.getenv(match[0], string)
         return string
 

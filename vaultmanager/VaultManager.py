@@ -37,10 +37,8 @@ class VaultManager:
         self.log_level_styles = dict(coloredlogs.DEFAULT_LEVEL_STYLES)
         self.log_level_styles["info"] = {"color": "white"}
         self.log_level_styles["debug"] = {"color": "green"}
-        self.log_level_styles["critical"] = {
-            "color": "magenta",
-            "bold": coloredlogs.CAN_USE_BOLD_FONT
-        }
+        self.log_level_styles["critical"] = {"color": "magenta"}
+
         self.log_field_styles = dict(coloredlogs.DEFAULT_FIELD_STYLES)
         self.log_field_styles["asctime"] = {"color": "yellow", "bright": True}
         self.log_field_styles["name"] = {"color": "blue"}
