@@ -105,6 +105,10 @@ class VaultManagerLDAP:
             metavar="users_secrets_folder",
             help="Create a folder for each user in <users_secrets_folder>"
         )
+        self.subparser.add_argument(
+            "--vault-config", nargs='?',
+            help="Specify location of vault_config folder"
+        )
         self.subparser.set_defaults(module_name=self.module_name)
 
     def get_subparser(self):
@@ -138,27 +142,6 @@ class VaultManagerLDAP:
             return False
         return True
 
-    def check_env_vars(self):
-        """
-        Check if all needed env vars are set
-
-        :return: bool
-        """
-        self.logger.debug("Checking env variables")
-        needed_env_vars = ["VAULT_ADDR", "VAULT_TOKEN", "VAULT_CONFIG"]
-        if not all(env_var in os.environ for env_var in needed_env_vars):
-            self.logger.critical("The following env vars must be set")
-            self.logger.critical(str(needed_env_vars))
-            return False
-        self.logger.debug("All env vars are set")
-        if not os.path.isdir(os.environ["VAULT_CONFIG"]):
-            self.logger.critical(
-                os.environ["VAULT_CONFIG"] + " is not a valid folder")
-            return False
-        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
-        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
-        return True
-
     def read_configuration(self):
         """
         Read the policies configuration file
@@ -179,7 +162,7 @@ class VaultManagerLDAP:
         Read the LDAP configuration file
         """
         self.logger.debug("Reading LDAP configuration file")
-        with open(os.path.join(os.environ["VAULT_CONFIG"], "ldap.yml"),
+        with open(os.path.join(self.parsed_args.vault_config, "ldap.yml"),
                   'r') as fd:
             try:
                 self.ldap_conf = yaml.load(fd)
@@ -476,14 +459,30 @@ class VaultManagerLDAP:
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser
         self.logger.debug("Module " + self.module_name + " started")
+
         if not self.check_args_integrity():
             self.subparser.print_help()
             return False
-        if not self.check_env_vars():
+        self.parsed_args.vault_config = utils.get_var_or_env(
+            self.logger, self.parsed_args.vault_config, "VAULT_CONFIG"
+        )
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]},
+             {"key": "vault_config", "exc": [None, False, '']}]
+        )
+        if len(missing_args):
+            self.logger.error("Following arguments are missing %s\n" %
+                              [k['key'].replace("_", "-") for k in missing_args])
+            if 'vault-config' in [k['key'].replace("_", "-") for k in missing_args]:
+                self.subparser.print_help()
+            else:
+                self.arg_parser.print_help()
             return False
-        # TODO: use get var or env
-        self.policies_folder = os.path.join(os.environ["VAULT_CONFIG"],
-                                            "policies")
+        self.policies_folder = os.path.join(
+            self.parsed_args.vault_config, "policies"
+        )
         self.user_policies_folder = os.path.join(self.policies_folder, "user")
         self.group_policies_folder = os.path.join(self.policies_folder, "group")
         self.group_policies_to_create = []
@@ -505,16 +504,7 @@ class VaultManagerLDAP:
         if self.parsed_args.create_policies:
             self.ldap_create_policies()
             return True
-        missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
-            [{"key": "vault_addr", "exc": [None, '']},
-             {"key": "vault_token", "exc": [None, False]}]
-        )
-        if len(missing_args):
-            raise ValueError(
-                "Following arguments are missing %s" %
-                [k['key'].replace("_", "-") for k in missing_args]
-            )
+
         self.vault_client = self.connect_to_vault(
             self.parsed_args.vault_addr,
             self.parsed_args.vault_token
