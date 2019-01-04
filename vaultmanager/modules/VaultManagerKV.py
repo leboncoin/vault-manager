@@ -85,6 +85,10 @@ class VaultManagerKV:
                                     help="""count all secrets on $VAULT_ADDR
                                     instance under SECRET_PATHS""",
                                     metavar="SECRET_PATHS")
+        self.subparser.add_argument("--find-duplicates", nargs='+',
+                                    help="""search and display duplicates on
+                                    $VAULT_ADDR instance under SECRET_PATHS""",
+                                    metavar="SECRET_PATHS")
         self.subparser.add_argument("-e", "--exclude", nargs='+',
                                     help="""paths to excludes from count or
                                     find-duplicates""",
@@ -311,6 +315,12 @@ class VaultManagerKV:
         self.logger.info("\tSecrets count: " + str(total_secrets))
         self.logger.info("\tK/V count: " + str(total_kv))
 
+    def kv_find_duplicates(self):
+        """
+        Method running the count function of KV module
+        """
+        self.logger.debug("KV find duplicates starting")
+
     def run(self, arg_parser, parsed_args):
         """
         Module entry point
@@ -322,7 +332,8 @@ class VaultManagerKV:
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser
         if not any([self.parsed_args.copy_path, self.parsed_args.count,
-                    self.parsed_args.copy_secret, self.parsed_args.delete]):
+                    self.parsed_args.copy_secret, self.parsed_args.delete,
+                    self.parsed_args.find_duplicates]):
             self.logger.error("One argument should be specified")
             self.subparser.print_help()
             return False
@@ -336,6 +347,8 @@ class VaultManagerKV:
                 self.kv_delete()
             elif self.parsed_args.count:
                 self.kv_count()
+            elif self.parsed_args.find_duplicates:
+                self.kv_find_duplicates()
         except ValueError as e:
             self.logger.error(str(e) + "\n")
             self.arg_parser.print_help()

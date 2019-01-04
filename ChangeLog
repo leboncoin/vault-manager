@@ -1,6 +1,29 @@
 CHANGES
 =======
 
+* update module template
+* move vault-config param from modules to main parser
+* missing LDAP password now correctly handled
+* add param vault-config for LDAP module
+* Policies module refactoring
+* LDAP module refactoring
+* add kv count function
+* remove forgotten reference to export
+* remove unused VaultClient instanciations
+* removed unused kv export
+* kv delete can now handle several paths
+* kv copy moved to kv copy\_path and add kv\_copy\_secret
+* remove unused methods from VaultClient class
+* KV delete feractored
+* new logging format
+* add new args to main module
+* remove deprecated documentation
+* delete deprecated modules
+* add deprecated for modules
+
+v1.1.5
+------
+
 * only remove / at begining and end of path (secret engines)
 
 v1.1.4
