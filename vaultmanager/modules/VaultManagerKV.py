@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 try:
     from lib.VaultClient import VaultClient
     import lib.utils as utils
@@ -300,20 +301,25 @@ class VaultManagerKV:
         )
         total_secrets = 0
         total_kv = 0
+        count_dict = {}
         excluded = self.parsed_args.exclude or []
         for path in self.parsed_args.count:
-            self.logger.info("At path '" + path + "'")
+            self.logger.debug("At path '" + path + "'")
+            count_dict[path] = {"secrets_count": -1, "values_count": -1}
             all_secrets = vault_client.secrets_tree_list(path, excluded)
-            self.logger.info("\tSecrets count: " + str(len(all_secrets)))
+            self.logger.debug("\tSecrets count: " + str(len(all_secrets)))
+            count_dict[path]["secrets_count"] = len(all_secrets)
             total_secrets += len(all_secrets)
             kv_count = 0
             for secret_path in all_secrets:
                 kv_count += len(vault_client.read(secret_path))
             total_kv += kv_count
-            self.logger.info("\tK/V count: " + str(kv_count))
-        self.logger.info("Total")
-        self.logger.info("\tSecrets count: " + str(total_secrets))
-        self.logger.info("\tK/V count: " + str(total_kv))
+            self.logger.debug("\tValues count: " + str(kv_count))
+            count_dict[path]["values_count"] = kv_count
+        self.logger.debug("Total")
+        self.logger.debug("\tSecrets count: " + str(total_secrets))
+        self.logger.debug("\tValues count: " + str(total_kv))
+        self.logger.info(json.dumps(count_dict, indent=4))
 
     def kv_find_duplicates(self):
         """
