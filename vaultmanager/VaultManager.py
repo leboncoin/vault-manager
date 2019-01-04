@@ -63,7 +63,7 @@ class VaultManager:
 
         self.set_logger_styles()
         formatter = logging.Formatter(self.log_format)
-        stream_handler = logging.StreamHandler()
+        stream_handler = logging.StreamHandler(stream=sys.stdout)
         stream_handler.setLevel(logging.INFO)
         stream_handler.setFormatter(formatter)
         self.logger.addHandler(stream_handler)
@@ -81,6 +81,8 @@ class VaultManager:
         self.logger.debug("Changing log level to " + str(logging.DEBUG))
         logging.getLogger(self.base_logger_name).setLevel(logging.DEBUG)
         for handler in logging.getLogger(self.base_logger_name).handlers:
+            # When upgrading to python 2.7
+            # handler.setStream(sys.stderr)
             if self.parsed_arguments.verbose == 1:
                 handler.setFormatter(
                     coloredlogs.ColoredFormatter(
