@@ -20,7 +20,8 @@ class VaultManager:
     base_logger_name = None
     parsed_arguments = None
     log_format = None
-    log_format_verbose = None
+    log_format_verbose_1 = None
+    log_format_verbose_2 = None
     log_level_styles = None
     log_field_styles = None
 
@@ -35,8 +36,9 @@ class VaultManager:
         """
         Change default values for coloredlogs and logger format
         """
-        self.log_format ="%(asctime)s %(levelname)-8s %(message)s"
-        self.log_format_verbose = "%(asctime)s,%(msecs)03d %(levelname)-8s %(name)s.%(funcName)s:%(lineno)d\n%(message)s"
+        self.log_format = "%(message)s"
+        self.log_format_verbose_1 ="%(asctime)s %(levelname)-8s %(message)s"
+        self.log_format_verbose_2 = "%(asctime)s,%(msecs)03d %(levelname)-8s %(name)s.%(funcName)s:%(lineno)d\n%(message)s"
 
         self.log_level_styles = dict(coloredlogs.DEFAULT_LEVEL_STYLES)
         self.log_level_styles["info"] = {"color": "white"}
@@ -60,11 +62,7 @@ class VaultManager:
         self.logger.setLevel(logging.INFO)
 
         self.set_logger_styles()
-        formatter = coloredlogs.ColoredFormatter(
-            self.log_format,
-            level_styles=self.log_level_styles,
-            field_styles=self.log_field_styles
-        )
+        formatter = logging.Formatter(self.log_format)
         stream_handler = logging.StreamHandler()
         stream_handler.setLevel(logging.INFO)
         stream_handler.setFormatter(formatter)
@@ -83,11 +81,19 @@ class VaultManager:
         self.logger.debug("Changing log level to " + str(logging.DEBUG))
         logging.getLogger(self.base_logger_name).setLevel(logging.DEBUG)
         for handler in logging.getLogger(self.base_logger_name).handlers:
-            handler.setLevel(logging.DEBUG)
-            if self.parsed_arguments.verbose >= 2:
+            if self.parsed_arguments.verbose == 1:
                 handler.setFormatter(
                     coloredlogs.ColoredFormatter(
-                        self.log_format_verbose,
+                        self.log_format_verbose_1,
+                        level_styles=self.log_level_styles,
+                        field_styles=self.log_field_styles
+                    )
+                )
+            elif self.parsed_arguments.verbose >= 2:
+                handler.setLevel(logging.DEBUG)
+                handler.setFormatter(
+                    coloredlogs.ColoredFormatter(
+                        self.log_format_verbose_2,
                         level_styles=self.log_level_styles,
                         field_styles=self.log_field_styles
                     )
