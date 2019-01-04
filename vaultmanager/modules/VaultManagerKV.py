@@ -326,6 +326,42 @@ class VaultManagerKV:
         Method running the count function of KV module
         """
         self.logger.debug("KV find duplicates starting")
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
+        vault_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
+        kv_full = {}
+        kv_list = []
+        excluded = self.parsed_args.exclude or []
+        for path in self.parsed_args.find_duplicates:
+            kv_list += vault_client.secrets_tree_list(path, excluded)
+        for kv in kv_list:
+            kv_full[kv] = vault_client.read_secret(kv)
+        values_count = {}
+        for path in kv_full:
+            for key in kv_full[path]:
+                if kv_full[path][key] not in values_count:
+                    values_count[kv_full[path][key]] = [path + ":" + key]
+                else:
+                    values_count[kv_full[path][key]].append(path + ":" + key)
+
+        grouped_duplicates = {}
+        dup_counter = 0
+        for elem in values_count:
+            if len(values_count[elem]) > 1:
+                grouped_duplicates[dup_counter] = values_count[elem]
+                dup_counter += 1
+        self.logger.info(json.dumps(grouped_duplicates, indent=4))
 
     def run(self, arg_parser, parsed_args):
         """
