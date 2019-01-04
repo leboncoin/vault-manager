@@ -1,6 +1,10 @@
 CHANGES
 =======
 
+* add find-duplicates function to kv module
+* function count in kv modules now prints a json
+* better logging levels
+* add missing possible arg in KV module
 * update module template
 * move vault-config param from modules to main parser
 * missing LDAP password now correctly handled
