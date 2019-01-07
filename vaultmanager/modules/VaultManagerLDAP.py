@@ -31,7 +31,7 @@ class VaultManagerLDAP:
     group_policies_to_create = None
     user_policies_to_create = None
 
-    def __init__(self, base_logger):
+    def __init__(self, base_logger=None):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -39,7 +39,10 @@ class VaultManagerLDAP:
         :type subparsers: argparse.ArgumentParser.add_subparsers()
         """
         self.base_logger = base_logger
-        self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
+        if base_logger:
+            self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
+        else:
+            self.logger = logging.getLogger()
         self.logger.debug("Initializing VaultManagerLDAP")
 
     def connect_to_vault(self, vault_addr, vault_token):
