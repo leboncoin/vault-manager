@@ -90,9 +90,14 @@ class VaultManagerKV:
                                     help="""search and display duplicates on
                                     $VAULT_ADDR instance under SECRET_PATHS""",
                                     metavar="SECRET_PATHS")
+        self.subparser.add_argument("--secrets-tree", nargs='+',
+                                    help="""display all secrets tree
+                                    (path/to/secret:key) on $VAULT_ADDR instance
+                                     under SECRET_PATHS""",
+                                    metavar="SECRET_PATHS")
         self.subparser.add_argument("-e", "--exclude", nargs='+',
-                                    help="""paths to excludes from count or
-                                    find-duplicates""",
+                                    help="""paths to excludes from count,
+                                    find-duplicates or secrets-paths""",
                                     metavar="SECRET_PATHS")
         self.subparser.set_defaults(module_name=self.module_name)
 
@@ -363,19 +368,45 @@ class VaultManagerKV:
                 dup_counter += 1
         self.logger.info(json.dumps(grouped_duplicates, indent=4))
 
+    def kv_secrets_tree(self):
+        """
+        Method running the secrets tree function of KV module
+        """
+        self.logger.debug("KV secrets paths starting")
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
+        vault_client = self.connect_to_vault(
+            self.parsed_args.vault_addr,
+            self.parsed_args.vault_token
+        )
+        kv_full = {}
+        excluded = self.parsed_args.exclude or []
+        for path in self.parsed_args.secrets_tree:
+            kv_full[path] = vault_client.secrets_tree_list(path, excluded)
+        self.logger.info(json.dumps(kv_full, indent=4))
+
     def run(self, arg_parser, parsed_args):
         """
         Module entry point
 
         :param arg_parser: Arguments parser instance
-        :param parsed_args: Arguments parsed fir this module
+        :param parsed_args: Arguments parsed for this module
         :type parsed_args: argparse.ArgumentParser.parse_args()
         """
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser
         if not any([self.parsed_args.copy_path, self.parsed_args.count,
                     self.parsed_args.copy_secret, self.parsed_args.delete,
-                    self.parsed_args.find_duplicates]):
+                    self.parsed_args.find_duplicates,
+                    self.parsed_args.secrets_tree]):
             self.logger.error("One argument should be specified")
             self.subparser.print_help()
             return False
@@ -391,6 +422,8 @@ class VaultManagerKV:
                 self.kv_count()
             elif self.parsed_args.find_duplicates:
                 self.kv_find_duplicates()
+            elif self.parsed_args.secrets_tree:
+                self.kv_secrets_tree()
         except ValueError as e:
             self.logger.error(str(e) + "\n")
             self.arg_parser.print_help()
