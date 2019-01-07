@@ -1,6 +1,8 @@
 CHANGES
 =======
 
+* logging is now on stdout instead of stderr
+* updated changelog
 * add find-duplicates function to kv module
 * function count in kv modules now prints a json
 * better logging levels

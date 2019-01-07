@@ -9,6 +9,7 @@ import coloredlogs
 try:
     import lib.utils as utils
 except ImportError:
+    import vaultmanager
     import vaultmanager.lib.utils as utils
 
 
@@ -107,6 +108,10 @@ class VaultManager:
         Add optional arguments to parser
         """
         self.logger.debug("Adding arguments")
+        self.arg_parser.add_argument(
+            '-V', '--version', action='store_true',
+            help="display version and exit"
+        )
         self.arg_parser.add_argument(
             '-v', '--verbose', action='count', help="enable verbose mode"
         )
@@ -218,7 +223,14 @@ class VaultManager:
         self.adjust_log_level()
         self.fetch_argument_values()
         self.logger.debug("Parsed arguments: " + str(self.parsed_arguments))
-        if len(sys.argv) <= 2:
+        if self.parsed_arguments.version:
+            try:
+                self.logger.info(
+                    self.base_logger_name + " v" + vaultmanager.__version__
+                )
+            except NameError:
+                self.logger.error("vaultmanager is not installed")
+        elif len(sys.argv) <= 2:
             print()
             print(self.arg_parser.print_help())
         else:
