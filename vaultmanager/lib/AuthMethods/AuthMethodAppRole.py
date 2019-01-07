@@ -37,7 +37,11 @@ class AuthMethodAppRole:
             "secret_id_ttl": 0,
             "token_max_ttl": 0,
             "token_num_uses": 0,
-            "token_ttl": 0
+            "token_ttl": 0,
+            "secret_id_bound_cidrs": [],
+            "token_bound_cidrs": [],
+            "enable_local_secret_ids": False,
+            "token_type": ""
         }
 
     def get_distant_approles(self):
