@@ -217,8 +217,8 @@ class VaultManager:
                     'vaultmanager.modules.' + module_name),
                     module_name
                 )
-            self.modules[module_short_name] = module(self.base_logger_name,
-                                                     subparsers)
+            self.modules[module_short_name] = module(self.base_logger_name)
+            self.modules[module_short_name].initialize_subparser(subparsers)
         self.parsed_arguments = self.arg_parser.parse_args()
         self.adjust_log_level()
         self.fetch_argument_values()

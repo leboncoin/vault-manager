@@ -16,7 +16,7 @@ class VaultManagerKV:
     parsed_args = None
     module_name = None
 
-    def __init__(self, base_logger, subparsers):
+    def __init__(self, base_logger):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -26,7 +26,6 @@ class VaultManagerKV:
         self.base_logger = base_logger
         self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
         self.logger.debug("Initializing VaultManagerKV")
-        self.initialize_subparser(subparsers)
 
     def connect_to_vault(self, vault_addr, vault_token):
         """

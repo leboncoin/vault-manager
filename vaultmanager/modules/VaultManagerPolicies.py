@@ -18,7 +18,7 @@ class VaultManagerPolicies:
     base_logger = None
     policies_folder = None
 
-    def __init__(self, base_logger, subparsers):
+    def __init__(self, base_logger):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -28,7 +28,6 @@ class VaultManagerPolicies:
         self.base_logger = base_logger
         self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
         self.logger.debug("Initializing VaultManagerPolicies")
-        self.initialize_subparser(subparsers)
 
     def initialize_subparser(self, subparsers):
         """
