@@ -18,7 +18,6 @@ class VaultManagerLDAP:
     logger = None
     subparser = None
     parsed_args = None
-    arg_parser = None
     module_name = None
     base_logger = None
     conf = None
@@ -443,16 +442,14 @@ class VaultManagerLDAP:
                 for secret in tree:
                     self.vault_client.delete(secret)
 
-    def run(self, arg_parser, parsed_args):
+    def run(self, parsed_args):
         """
         Module entry point
 
-        :param arg_parser: Arguments parser instance
         :param parsed_args: Arguments parsed fir this module
         :type parsed_args: argparse.ArgumentParser.parse_args()
         """
         self.parsed_args = parsed_args
-        self.arg_parser = arg_parser
         self.logger.debug("Module " + self.module_name + " started")
 
         if not self.check_args_integrity():
@@ -465,10 +462,10 @@ class VaultManagerLDAP:
              {"key": "vault_config", "exc": [None, False, '']}]
         )
         if len(missing_args):
-            self.logger.error("Following arguments are missing %s\n" %
-                              [k['key'].replace("_", "-") for k in missing_args])
-            self.arg_parser.print_help()
-            return False
+            raise ValueError(
+                "Following arguments are missing %s\n" % [
+                    k['key'].replace("_", "-") for k in missing_args]
+            )
         self.policies_folder = os.path.join(
             self.parsed_args.vault_config, "policies"
         )
@@ -493,7 +490,6 @@ class VaultManagerLDAP:
         if self.parsed_args.create_policies:
             self.ldap_create_policies()
             return True
-
         self.vault_client = self.connect_to_vault(
             self.parsed_args.vault_addr,
             self.parsed_args.vault_token

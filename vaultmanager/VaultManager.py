@@ -237,6 +237,11 @@ class VaultManager:
             # Start the specified module
             if self.parsed_arguments.dry_run:
                 self.logger.info("RUNNING IN DRY MODE")
-            self.modules[self.parsed_arguments.module_name].run(
-                self.arg_parser, self.parsed_arguments
-            )
+            try:
+                self.modules[self.parsed_arguments.module_name].run(
+                    self.parsed_arguments
+                )
+            except ValueError as e:
+                self.logger.error(str(e) + "\n")
+                self.arg_parser.print_help()
+                exit(1)

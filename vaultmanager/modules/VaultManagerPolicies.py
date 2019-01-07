@@ -13,7 +13,6 @@ class VaultManagerPolicies:
     logger = None
     subparser = None
     parsed_args = None
-    arg_parser = None
     module_name = None
     vault_client = None
     base_logger = None
@@ -130,19 +129,17 @@ class VaultManagerPolicies:
                 self.logger.info("Policy %s has been created" % policy["name"])
         self.logger.info("Policies pushed to Vault")
 
-    def run(self, arg_parser, parsed_args):
+    def run(self, parsed_args):
         """
         Module entry point
 
-        :param arg_parser: Arguments parser instance
         :param parsed_args: Arguments parsed fir this module
         :type parsed_args: argparse.ArgumentParser.parse_args()
         """
         self.parsed_args = parsed_args
-        self.arg_parser = arg_parser
         self.logger.debug("Module " + self.module_name + " started")
         if not self.check_args_integrity():
-            self.arg_parser.print_help()
+            self.subparser.print_help()
             return False
         missing_args = utils.keys_exists_in_dict(
             self.logger, vars(self.parsed_args),
@@ -151,10 +148,10 @@ class VaultManagerPolicies:
              {"key": "vault_config", "exc": [None, False, '']}]
         )
         if len(missing_args):
-            self.logger.error("Following arguments are missing %s\n" %
-                              [k['key'].replace("_", "-") for k in missing_args])
-            self.arg_parser.print_help()
-            return False
+            raise ValueError(
+                "Following arguments are missing %s\n" % [
+                    k['key'].replace("_", "-") for k in missing_args]
+            )
         self.logger.debug("Vault config folder: %s" % self.parsed_args.vault_config)
         self.policies_folder = os.path.join(
             self.parsed_args.vault_config, "policies"
