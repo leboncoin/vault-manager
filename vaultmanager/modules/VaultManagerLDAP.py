@@ -1,6 +1,7 @@
 import os
 import yaml
 import logging
+from collections import namedtuple
 try:
     from lib.VaultClient import VaultClient
     from lib.LDAPReader import LDAPReader
@@ -17,7 +18,7 @@ class VaultManagerLDAP:
     """
     logger = None
     subparser = None
-    parsed_args = None
+    kwargs = None
     module_name = None
     base_logger = None
     conf = None
@@ -54,9 +55,9 @@ class VaultManagerLDAP:
         self.logger.debug("Connecting to Vault instance '%s'" % vault_addr)
         vault_client = VaultClient(
             self.base_logger,
-            dry=self.parsed_args.dry_run,
+            dry=self.kwargs.dry_run,
             vault_addr=vault_addr,
-            skip_tls=self.parsed_args.skip_tls
+            skip_tls=self.kwargs.skip_tls
         )
         vault_client.authenticate(vault_token)
         return vault_client
@@ -117,18 +118,18 @@ class VaultManagerLDAP:
         Checking provided arguments integrity
         """
         self.logger.debug("Checking arguments integrity")
-        args_false_count = [self.parsed_args.create_policies,
-                            self.parsed_args.manage_ldap_groups,
-                            self.parsed_args.manage_ldap_users,
-                            self.parsed_args.list_groups,
-                            self.parsed_args.create_groups_secrets,
-                            self.parsed_args.create_users_secrets].count(False)
-        args_none_count = [self.parsed_args.create_policies,
-                           self.parsed_args.manage_ldap_groups,
-                           self.parsed_args.manage_ldap_users,
-                           self.parsed_args.list_groups,
-                           self.parsed_args.create_groups_secrets,
-                           self.parsed_args.create_users_secrets].count(None)
+        args_false_count = [self.kwargs.create_policies,
+                            self.kwargs.manage_ldap_groups,
+                            self.kwargs.manage_ldap_users,
+                            self.kwargs.list_groups,
+                            self.kwargs.create_groups_secrets,
+                            self.kwargs.create_users_secrets].count(False)
+        args_none_count = [self.kwargs.create_policies,
+                           self.kwargs.manage_ldap_groups,
+                           self.kwargs.manage_ldap_users,
+                           self.kwargs.list_groups,
+                           self.kwargs.create_groups_secrets,
+                           self.kwargs.create_users_secrets].count(None)
         no_args_count = args_false_count + args_none_count
         if no_args_count in [6, 7]:
             self.logger.critical("you must specify a command")
@@ -155,7 +156,7 @@ class VaultManagerLDAP:
         Read the LDAP configuration file
         """
         self.logger.debug("Reading LDAP configuration file")
-        with open(os.path.join(self.parsed_args.vault_config, "ldap.yml"),
+        with open(os.path.join(self.kwargs.vault_config, "ldap.yml"),
                   'r') as fd:
             try:
                 self.ldap_conf = yaml.load(fd)
@@ -295,7 +296,7 @@ class VaultManagerLDAP:
         """
         self.logger.debug("LDAP manage-ldap-groups starting")
         self.logger.info("Managing groups in Vault LDAP '%s' config" %
-                         self.parsed_args.manage_ldap_groups)
+                         self.kwargs.manage_ldap_groups)
         self.logger.debug("Managing groups to Vault LDAP configuration")
         raw_vault_ldap_groups = self.vault_client.list('/auth/ldap/groups')
         existing_groups = []
@@ -331,7 +332,7 @@ class VaultManagerLDAP:
         """
         self.logger.debug("LDAP manage-ldap-users starting")
         self.logger.info("Managing users in Vault LDAP '%s' config" %
-                         self.parsed_args.manage_ldap_users)
+                         self.kwargs.manage_ldap_users)
         self.logger.debug("Managing users to Vault LDAP configuration")
         raw_vault_ldap_users = self.vault_client.list('/auth/ldap/users')
         self.logger.debug("Users found: " + str(raw_vault_ldap_users))
@@ -375,11 +376,11 @@ class VaultManagerLDAP:
         """
         self.logger.debug("LDAP create-groups-secrets starting")
         self.logger.info("Creating groups folders under secret path '/%s'" %
-                         self.parsed_args.create_groups_secrets)
+                         self.kwargs.create_groups_secrets)
         self.logger.debug("Creating groups secrets under %s" %
-                          self.parsed_args.create_groups_secrets)
+                          self.kwargs.create_groups_secrets)
         existing_folders = self.vault_client.list(
-            self.parsed_args.create_groups_secrets
+            self.kwargs.create_groups_secrets
         )
         if len(existing_folders):
             existing_folders = [e.replace("/", "") for e in
@@ -388,13 +389,13 @@ class VaultManagerLDAP:
         for group in self.conf["groups"]["groups_to_add"]:
             if group not in existing_folders:
                 self.logger.info("Creating folder: " + group)
-                self.vault_client.write(self.parsed_args.create_groups_secrets +
+                self.vault_client.write(self.kwargs.create_groups_secrets +
                                         "/" + group + "/description",
                                         {group: "group private secrets space"})
         for group in existing_folders:
             if group not in self.conf["groups"]["groups_to_add"]:
                 tree = self.vault_client.get_secrets_tree(
-                    self.parsed_args.create_groups_secrets + "/" + group)
+                    self.kwargs.create_groups_secrets + "/" + group)
                 self.logger.info(
                     "Deleting folder " + group + " and associated secrets " + str(
                         tree))
@@ -408,9 +409,9 @@ class VaultManagerLDAP:
         """
         self.logger.debug("LDAP create-users-secrets starting")
         self.logger.info("Creating users folders under secret path '/%s'" %
-                         self.parsed_args.create_users_secrets)
+                         self.kwargs.create_users_secrets)
         self.logger.debug("Creating users secrets under %s" %
-                          self.parsed_args.create_users_secrets)
+                          self.kwargs.create_users_secrets)
         enabled_users = []
         for user in self.ldap_users:
             groups_of_user = list(
@@ -419,7 +420,7 @@ class VaultManagerLDAP:
             if len(groups_of_user):
                 enabled_users.append(user)
         existing_folders = self.vault_client.list(
-            self.parsed_args.create_users_secrets
+            self.kwargs.create_users_secrets
         )
         if len(existing_folders):
             existing_folders = [e.replace("/", "") for e in
@@ -429,33 +430,34 @@ class VaultManagerLDAP:
             if user not in existing_folders:
                 self.logger.info("Creating folder: " + user)
                 self.vault_client.write(
-                    self.parsed_args.create_users_secrets + "/" + user + "/description",
+                    self.kwargs.create_users_secrets + "/" + user + "/description",
                     {user: "user private secrets space"})
         for user in existing_folders:
             if user not in enabled_users:
                 tree = self.vault_client.get_secrets_tree(
-                    self.parsed_args.create_users_secrets + "/" + user)
+                    self.kwargs.create_users_secrets + "/" + user)
                 self.logger.info(
                     "Deleting folder " + user + " and associated secrets " + str(
                         tree))
                 for secret in tree:
                     self.vault_client.delete(secret)
 
-    def run(self, parsed_args):
+    def run(self, kwargs):
         """
         Module entry point
 
-        :param parsed_args: Arguments parsed fir this module
-        :type parsed_args: argparse.ArgumentParser.parse_args()
+        :param kwargs: Arguments parsed
+        :type kwargs: dict
         """
-        self.parsed_args = parsed_args
+        # Convert kwargs to an Object with kwargs dict as class vars
+        self.kwargs = namedtuple("KwArgs", kwargs.keys())(*kwargs.values())
         self.logger.debug("Module " + self.module_name + " started")
 
         if not self.check_args_integrity():
             self.subparser.print_help()
             return False
         missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
+            self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]},
              {"key": "vault_config", "exc": [None, False, '']}]
@@ -466,7 +468,7 @@ class VaultManagerLDAP:
                     k['key'].replace("_", "-") for k in missing_args]
             )
         self.policies_folder = os.path.join(
-            self.parsed_args.vault_config, "policies"
+            self.kwargs.vault_config, "policies"
         )
         self.user_policies_folder = os.path.join(self.policies_folder, "user")
         self.group_policies_folder = os.path.join(self.policies_folder, "group")
@@ -476,28 +478,28 @@ class VaultManagerLDAP:
             return False
         self.vault_client = VaultClient(
             self.base_logger,
-            vault_addr=self.parsed_args.vault_addr,
-            dry=self.parsed_args.dry_run,
-            skip_tls=self.parsed_args.skip_tls
+            vault_addr=self.kwargs.vault_addr,
+            dry=self.kwargs.dry_run,
+            skip_tls=self.kwargs.skip_tls
         )
         self.vault_client.authenticate()
         if not self.get_ldap_data():
             return False
-        if self.parsed_args.list_groups:
+        if self.kwargs.list_groups:
             self.ldap_list_groups()
             return True
-        if self.parsed_args.create_policies:
+        if self.kwargs.create_policies:
             self.ldap_create_policies()
             return True
         self.vault_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
-        if self.parsed_args.manage_ldap_groups:
+        if self.kwargs.manage_ldap_groups:
             self.ldap_manage_ldap_groups()
-        if self.parsed_args.manage_ldap_users:
+        if self.kwargs.manage_ldap_users:
             self.ldap_manage_ldap_users()
-        if self.parsed_args.create_groups_secrets:
+        if self.kwargs.create_groups_secrets:
             self.ldap_create_groups_secrets()
-        if self.parsed_args.create_users_secrets:
+        if self.kwargs.create_users_secrets:
             self.ldap_create_users_secrets()

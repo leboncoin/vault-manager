@@ -1,6 +1,7 @@
 import os
 import glob
 import logging
+from collections import namedtuple
 try:
     from lib.VaultClient import VaultClient
     import lib.utils as utils
@@ -12,7 +13,7 @@ except ImportError:
 class VaultManagerPolicies:
     logger = None
     subparser = None
-    parsed_args = None
+    kwargs = None
     module_name = None
     vault_client = None
     base_logger = None
@@ -57,11 +58,11 @@ class VaultManagerPolicies:
         Checking provided arguments integrity
         """
         self.logger.debug("Checking arguments integrity")
-        if all(self.parsed_args.pull, self.parsed_args.push):
+        if all(self.kwargs.pull, self.kwargs.push):
             self.logger.critical("push and pull args cannot "
                                  "be specified at the same time")
             return False
-        elif not any(self.parsed_args.pull, self.parsed_args.push):
+        elif not any(self.kwargs.pull, self.kwargs.push):
             self.logger.critical("You must specify pull or push")
             return False
         return True
@@ -128,20 +129,21 @@ class VaultManagerPolicies:
                 self.logger.info("Policy %s has been created" % policy["name"])
         self.logger.info("Policies pushed to Vault")
 
-    def run(self, parsed_args):
+    def run(self, kwargs):
         """
         Module entry point
 
-        :param parsed_args: Arguments parsed fir this module
-        :type parsed_args: argparse.ArgumentParser.parse_args()
+        :param kwargs: Arguments parsed
+        :type kwargs: dict
         """
-        self.parsed_args = parsed_args
+        # Convert kwargs to an Object with kwargs dict as class vars
+        self.kwargs = namedtuple("KwArgs", kwargs.keys())(*kwargs.values())
         self.logger.debug("Module " + self.module_name + " started")
         if not self.check_args_integrity():
             self.subparser.print_help()
             return False
         missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
+            self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]},
              {"key": "vault_config", "exc": [None, False, '']}]
@@ -151,20 +153,20 @@ class VaultManagerPolicies:
                 "Following arguments are missing %s\n" % [
                     k['key'].replace("_", "-") for k in missing_args]
             )
-        self.logger.debug("Vault config folder: %s" % self.parsed_args.vault_config)
+        self.logger.debug("Vault config folder: %s" % self.kwargs.vault_config)
         self.policies_folder = os.path.join(
-            self.parsed_args.vault_config, "policies"
+            self.kwargs.vault_config, "policies"
         )
         if not os.path.isdir(self.policies_folder):
             os.mkdir(self.policies_folder)
         self.vault_client = VaultClient(
             self.base_logger,
-            vault_addr=self.parsed_args.vault_addr,
-            dry=self.parsed_args.dry_run,
-            skip_tls=self.parsed_args.skip_tls
+            vault_addr=self.kwargs.vault_addr,
+            dry=self.kwargs.dry_run,
+            skip_tls=self.kwargs.skip_tls
         )
         self.vault_client.authenticate()
-        if self.parsed_args.pull:
+        if self.kwargs.pull:
             self.policies_pull()
-        if self.parsed_args.push:
+        if self.kwargs.push:
             self.policies_push()

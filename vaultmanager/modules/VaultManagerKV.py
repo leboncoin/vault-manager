@@ -1,6 +1,7 @@
 import os
 import logging
 import json
+from collections import namedtuple
 try:
     from lib.VaultClient import VaultClient
     import lib.utils as utils
@@ -13,7 +14,7 @@ class VaultManagerKV:
     logger = None
     base_logger = None
     subparser = None
-    parsed_args = None
+    kwargs = None
     module_name = None
 
     def __init__(self, base_logger):
@@ -40,9 +41,9 @@ class VaultManagerKV:
         self.logger.debug("Connecting to Vault instance '%s'" % vault_addr)
         vault_client = VaultClient(
             self.base_logger,
-            dry=self.parsed_args.dry_run,
+            dry=self.kwargs.dry_run,
             vault_addr=vault_addr,
-            skip_tls=self.parsed_args.skip_tls
+            skip_tls=self.kwargs.skip_tls
         )
         vault_client.authenticate(vault_token)
         return vault_client
@@ -163,7 +164,7 @@ class VaultManagerKV:
         """
         self.logger.debug("KV copy secret starting")
         missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
+            self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]},
              {"key": "vault_target_addr", "exc": [None, '']},
@@ -176,30 +177,30 @@ class VaultManagerKV:
             )
         self.logger.info("Copying %s from %s to %s on %s" %
                          (
-                             self.parsed_args.copy_secret[0],
-                             self.parsed_args.vault_addr,
-                             self.parsed_args.copy_secret[1],
-                             self.parsed_args.vault_target_addr
+                             self.kwargs.copy_secret[0],
+                             self.kwargs.vault_addr,
+                             self.kwargs.copy_secret[1],
+                             self.kwargs.vault_target_addr
                          )
                          )
         vault_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
-        secret_to_copy = vault_client.read(self.parsed_args.copy_secret[0])
+        secret_to_copy = vault_client.read(self.kwargs.copy_secret[0])
         if not len(secret_to_copy):
             raise AttributeError("'%s' is not a valid secret. If you're trying "
                                  "to copy a path, use --copy-path instead" %
-                                 self.parsed_args.copy_secret[0])
+                                 self.kwargs.copy_secret[0])
         vault_target_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
         vault_target_client.write(
-            self.parsed_args.copy_secret[1], secret_to_copy, hide_all=True
+            self.kwargs.copy_secret[1], secret_to_copy, hide_all=True
         )
         self.logger.info("Secret '%s' successfully copied" %
-                         self.parsed_args.copy_secret[0])
+                         self.kwargs.copy_secret[0])
 
     def kv_copy_path(self):
         """
@@ -207,7 +208,7 @@ class VaultManagerKV:
         """
         self.logger.debug("KV copy path starting")
         missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
+            self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]},
              {"key": "vault_target_addr", "exc": [None, '']},
@@ -220,33 +221,33 @@ class VaultManagerKV:
             )
         self.logger.info("Copying %s from %s to %s on %s" %
                          (
-                             self.parsed_args.copy_path[0],
-                             self.parsed_args.vault_addr,
-                             self.parsed_args.copy_path[1],
-                             self.parsed_args.vault_target_addr
+                             self.kwargs.copy_path[0],
+                             self.kwargs.vault_addr,
+                             self.kwargs.copy_path[1],
+                             self.kwargs.vault_target_addr
                          )
                          )
         vault_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
         exported_kv = self.read_from_vault(
-            self.parsed_args.copy_path[0], vault_client
+            self.kwargs.copy_path[0], vault_client
         )
         if not len(exported_kv):
             raise AttributeError("No path to copy")
-        if len(exported_kv) == 1 and list(exported_kv.keys())[0] == self.parsed_args.copy_path[0]:
+        if len(exported_kv) == 1 and list(exported_kv.keys())[0] == self.kwargs.copy_path[0]:
             raise AttributeError(
                 "--copy-path should not be used to copy individual secrets."
                 " Use --copy-secret instead"
             )
 
         vault_target_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
-        self.push_to_vault(self.parsed_args.copy_path[0], exported_kv,
-                           self.parsed_args.copy_path[1],
+        self.push_to_vault(self.kwargs.copy_path[0], exported_kv,
+                           self.kwargs.copy_path[1],
                            vault_target_client)
         self.logger.info("Path successfully copied")
 
@@ -257,7 +258,7 @@ class VaultManagerKV:
         self.logger.debug("KV delete starting")
 
         missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
+            self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]}]
         )
@@ -267,10 +268,10 @@ class VaultManagerKV:
                 [k['key'].replace("_", "-") for k in missing_args]
             )
         vault_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
-        for to_delete in self.parsed_args.delete:
+        for to_delete in self.kwargs.delete:
             self.logger.info("Deleting all secrets at and under %s at %s" %
                              (to_delete,
                               os.environ["VAULT_ADDR"]))
@@ -288,7 +289,7 @@ class VaultManagerKV:
         """
         self.logger.debug("KV count starting")
         missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
+            self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]}]
         )
@@ -298,14 +299,14 @@ class VaultManagerKV:
                 [k['key'].replace("_", "-") for k in missing_args]
             )
         vault_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
         total_secrets = 0
         total_kv = 0
         count_dict = {}
-        excluded = self.parsed_args.exclude or []
-        for path in self.parsed_args.count:
+        excluded = self.kwargs.exclude or []
+        for path in self.kwargs.count:
             self.logger.debug("At path '" + path + "'")
             count_dict[path] = {"secrets_count": -1, "values_count": -1}
             all_secrets = vault_client.secrets_tree_list(path, excluded)
@@ -329,7 +330,7 @@ class VaultManagerKV:
         """
         self.logger.debug("KV find duplicates starting")
         missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
+            self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]}]
         )
@@ -339,13 +340,13 @@ class VaultManagerKV:
                 [k['key'].replace("_", "-") for k in missing_args]
             )
         vault_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
         kv_full = {}
         kv_list = []
-        excluded = self.parsed_args.exclude or []
-        for path in self.parsed_args.find_duplicates:
+        excluded = self.kwargs.exclude or []
+        for path in self.kwargs.find_duplicates:
             kv_list += vault_client.secrets_tree_list(path, excluded)
         for kv in kv_list:
             kv_full[kv] = vault_client.read_secret(kv)
@@ -371,7 +372,7 @@ class VaultManagerKV:
         """
         self.logger.debug("KV secrets paths starting")
         missing_args = utils.keys_exists_in_dict(
-            self.logger, vars(self.parsed_args),
+            self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]}]
         )
@@ -381,43 +382,44 @@ class VaultManagerKV:
                 [k['key'].replace("_", "-") for k in missing_args]
             )
         vault_client = self.connect_to_vault(
-            self.parsed_args.vault_addr,
-            self.parsed_args.vault_token
+            self.kwargs.vault_addr,
+            self.kwargs.vault_token
         )
         kv_full = {}
-        excluded = self.parsed_args.exclude or []
-        for path in self.parsed_args.secrets_tree:
+        excluded = self.kwargs.exclude or []
+        for path in self.kwargs.secrets_tree:
             kv_full[path] = vault_client.secrets_tree_list(path, excluded)
         self.logger.info(json.dumps(kv_full, indent=4))
 
-    def run(self, parsed_args):
+    def run(self, kwargs):
         """
         Module entry point
 
-        :param parsed_args: Arguments parsed for this module
-        :type parsed_args: argparse.ArgumentParser.parse_args()
+        :param kwargs: Arguments parsed
+        :type kwargs: dict
         """
-        self.parsed_args = parsed_args
-        if not any([self.parsed_args.copy_path, self.parsed_args.count,
-                    self.parsed_args.copy_secret, self.parsed_args.delete,
-                    self.parsed_args.find_duplicates,
-                    self.parsed_args.secrets_tree]):
+        # Convert kwargs to an Object with kwargs dict as class vars
+        self.kwargs = namedtuple("KwArgs", kwargs.keys())(*kwargs.values())
+        if not any([self.kwargs.copy_path, self.kwargs.count,
+                    self.kwargs.copy_secret, self.kwargs.delete,
+                    self.kwargs.find_duplicates,
+                    self.kwargs.secrets_tree]):
             self.logger.error("One argument should be specified")
             self.subparser.print_help()
             return False
         self.logger.debug("Module " + self.module_name + " started")
         try:
-            if self.parsed_args.copy_path:
+            if self.kwargs.copy_path:
                 self.kv_copy_path()
-            elif self.parsed_args.copy_secret:
+            elif self.kwargs.copy_secret:
                 self.kv_copy_secret()
-            elif self.parsed_args.delete:
+            elif self.kwargs.delete:
                 self.kv_delete()
-            elif self.parsed_args.count:
+            elif self.kwargs.count:
                 self.kv_count()
-            elif self.parsed_args.find_duplicates:
+            elif self.kwargs.find_duplicates:
                 self.kv_find_duplicates()
-            elif self.parsed_args.secrets_tree:
+            elif self.kwargs.secrets_tree:
                 self.kv_secrets_tree()
         except AttributeError as e:
             self.logger.error(str(e))

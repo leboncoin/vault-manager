@@ -239,7 +239,7 @@ class VaultManager:
                 self.logger.info("RUNNING IN DRY MODE")
             try:
                 self.modules[self.parsed_arguments.module_name].run(
-                    self.parsed_arguments
+                    vars(self.parsed_arguments)
                 )
             except ValueError as e:
                 self.logger.error(str(e) + "\n")
