@@ -68,4 +68,3 @@ class VaultManagerModule:
             self.arg_parser.print_help()
             return False
         self.logger.debug("Module " + self.module_name + " started")
-        print(self.parsed_args)

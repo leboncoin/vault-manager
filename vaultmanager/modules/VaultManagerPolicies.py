@@ -139,7 +139,6 @@ class VaultManagerPolicies:
         :type parsed_args: argparse.ArgumentParser.parse_args()
         """
         self.parsed_args = parsed_args
-        self.logger.debug(self.parsed_args)
         self.arg_parser = arg_parser
         self.logger.debug("Module " + self.module_name + " started")
         if not self.check_args_integrity():
