@@ -29,7 +29,6 @@ class VaultManagerKV:
         self.logger.debug("Initializing VaultManagerKV")
         self.initialize_subparser(subparsers)
 
-    # TODO: migrate in utils
     def connect_to_vault(self, vault_addr, vault_token):
         """
         Connect to a Vault instance
