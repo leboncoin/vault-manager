@@ -286,30 +286,20 @@ class VaultManagerKV:
             else:
                 self.logger.error("No secrets to delete at '%s'" % to_delete)
 
-    def kv_count(self):
+    def kv_count(self, vault_addr, vault_token, paths, excluded=[]):
         """
         Method running the count function of KV module
         """
         self.logger.debug("KV count starting")
-        missing_args = utils.keys_exists_in_dict(
-            self.logger, dict(self.kwargs._asdict()),
-            [{"key": "vault_addr", "exc": [None, '']},
-             {"key": "vault_token", "exc": [None, False]}]
-        )
-        if len(missing_args):
-            raise ValueError(
-                "Following arguments are missing %s" %
-                [k['key'].replace("_", "-") for k in missing_args]
-            )
+
         vault_client = self.connect_to_vault(
-            self.kwargs.vault_addr,
-            self.kwargs.vault_token
+            vault_addr,
+            vault_token
         )
         total_secrets = 0
         total_kv = 0
         count_dict = {}
-        excluded = self.kwargs.exclude or []
-        for path in self.kwargs.count:
+        for path in paths:
             self.logger.debug("At path '" + path + "'")
             count_dict[path] = {"secrets_count": -1, "values_count": -1}
             all_secrets = vault_client.secrets_tree_list(path, excluded)
@@ -327,13 +317,13 @@ class VaultManagerKV:
         self.logger.debug("\tValues count: " + str(total_kv))
         self.logger.info(json.dumps(count_dict, indent=4))
 
-    def kv_find_duplicates(self):
+    def kv_find_duplicates(self, kwargs):
         """
         Method running the count function of KV module
         """
         self.logger.debug("KV find duplicates starting")
         missing_args = utils.keys_exists_in_dict(
-            self.logger, dict(self.kwargs._asdict()),
+            self.logger, kwargs,
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]}]
         )
@@ -343,13 +333,13 @@ class VaultManagerKV:
                 [k['key'].replace("_", "-") for k in missing_args]
             )
         vault_client = self.connect_to_vault(
-            self.kwargs.vault_addr,
-            self.kwargs.vault_token
+            kwargs["vault_addr"],
+            kwargs["vault_token"]
         )
         kv_full = {}
         kv_list = []
-        excluded = self.kwargs.exclude or []
-        for path in self.kwargs.find_duplicates:
+        excluded = kwargs["exclude"] or []
+        for path in kwargs["find_duplicates"]:
             kv_list += vault_client.secrets_tree_list(path, excluded)
         for kv in kv_list:
             kv_full[kv] = vault_client.read_secret(kv)
@@ -369,13 +359,13 @@ class VaultManagerKV:
                 dup_counter += 1
         self.logger.info(json.dumps(grouped_duplicates, indent=4))
 
-    def kv_secrets_tree(self):
+    def kv_secrets_tree(self, kwargs):
         """
         Method running the secrets tree function of KV module
         """
         self.logger.debug("KV secrets paths starting")
         missing_args = utils.keys_exists_in_dict(
-            self.logger, dict(self.kwargs._asdict()),
+            self.logger, kwargs,
             [{"key": "vault_addr", "exc": [None, '']},
              {"key": "vault_token", "exc": [None, False]}]
         )
@@ -385,12 +375,12 @@ class VaultManagerKV:
                 [k['key'].replace("_", "-") for k in missing_args]
             )
         vault_client = self.connect_to_vault(
-            self.kwargs.vault_addr,
-            self.kwargs.vault_token
+            kwargs["vault_addr"],
+            kwargs["vault_token"]
         )
         kv_full = {}
-        excluded = self.kwargs.exclude or []
-        for path in self.kwargs.secrets_tree:
+        excluded = kwargs["exclude"] or []
+        for path in kwargs["secrets_tree"]:
             kv_full[path] = vault_client.secrets_tree_list(path, excluded)
         self.logger.info(json.dumps(kv_full, indent=4))
 
@@ -419,10 +409,23 @@ class VaultManagerKV:
             elif self.kwargs.delete:
                 self.kv_delete()
             elif self.kwargs.count:
-                self.kv_count()
+                missing_args = utils.keys_exists_in_dict(
+                    self.logger, kwargs,
+                    [{"key": "vault_addr", "exc": [None, '']},
+                     {"key": "vault_token", "exc": [None, False]}]
+                )
+                if len(missing_args):
+                    raise ValueError(
+                        "Following arguments are missing %s" %
+                        [k['key'].replace("_", "-") for k in missing_args]
+                    )
+                self.kv_count(kwargs["vault_addr"], kwargs["vault_token"], kwargs["count"], kwargs["excluded"])
             elif self.kwargs.find_duplicates:
-                self.kv_find_duplicates()
+                self.kv_find_duplicates(dict(self.kwargs._asdict()))
             elif self.kwargs.secrets_tree:
-                self.kv_secrets_tree()
+                self.kv_secrets_tree(dict(self.kwargs._asdict()))
         except AttributeError as e:
             self.logger.error(str(e))
+        except ValueError as e:
+            self.logger.error(str(e))
+
