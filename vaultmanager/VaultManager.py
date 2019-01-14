@@ -222,7 +222,6 @@ class VaultManager:
         self.parsed_arguments = self.arg_parser.parse_args()
         self.adjust_log_level()
         self.fetch_argument_values()
-        self.logger.debug("Parsed arguments: " + str(self.parsed_arguments))
         if self.parsed_arguments.version:
             try:
                 self.logger.info(
