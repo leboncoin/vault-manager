@@ -147,7 +147,7 @@ class VaultManagerLDAP:
         with open(os.path.join(self.policies_folder, "policies.yml"),
                   'r') as fd:
             try:
-                self.conf = yaml.load(fd)
+                self.conf = yaml.safe_load(fd)
             except yaml.YAMLError as e:
                 self.logger.critical("Impossible to load conf file: " + str(e))
                 return False
@@ -162,7 +162,7 @@ class VaultManagerLDAP:
         with open(os.path.join(self.kwargs.vault_config, "ldap.yml"),
                   'r') as fd:
             try:
-                self.ldap_conf = yaml.load(fd)
+                self.ldap_conf = yaml.safe_load(fd)
             except yaml.YAMLError as e:
                 self.logger.critical("Impossible to load LDAP conf file: %s" %
                                      str(e))
