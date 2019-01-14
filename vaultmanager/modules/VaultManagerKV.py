@@ -334,29 +334,29 @@ class VaultManagerKV:
         self.logger.info(json.dumps(count_dict, indent=4))
         return count_dict
 
-    def kv_find_duplicates(self, kwargs):
+    def kv_find_duplicates(self, vault_addr, vault_token, paths, excluded=[]):
         """
         Method running the count function of KV module
+
+        :param vault_addr: Vault instance URL
+        :type vault_addr: str
+        :param vault_token: Vault token
+        :type vault_token: str
+        :param paths: Paths to look for duplicates
+        :type paths: list(str)
+        :param excluded: Paths to exclude from count
+        :type excluded: list(str)
+
+        :return: dict
         """
         self.logger.debug("KV find duplicates starting")
-        missing_args = utils.keys_exists_in_dict(
-            self.logger, kwargs,
-            [{"key": "vault_addr", "exc": [None, '']},
-             {"key": "vault_token", "exc": [None, False]}]
-        )
-        if len(missing_args):
-            raise ValueError(
-                "Following arguments are missing %s" %
-                [k['key'].replace("_", "-") for k in missing_args]
-            )
         vault_client = self.connect_to_vault(
-            kwargs["vault_addr"],
-            kwargs["vault_token"]
+            vault_addr,
+            vault_token
         )
         kv_full = {}
         kv_list = []
-        excluded = kwargs["exclude"] or []
-        for path in kwargs["find_duplicates"]:
+        for path in paths:
             kv_list += vault_client.secrets_tree_list(path, excluded)
         for kv in kv_list:
             kv_full[kv] = vault_client.read_secret(kv)
@@ -518,6 +518,28 @@ class VaultManagerKV:
             self.kwargs["exclude"] if self.kwargs["exclude"] else []
         )
 
+    def run_kv_find_duplicates(self):
+        """
+        Prepares a CLI run of kv_find_duplicates
+        """
+        self.logger.debug("Preparing run of kv_find_duplicates")
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, self.kwargs,
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
+        self.kv_find_duplicates(
+            self.kwargs["vault_addr"],
+            self.kwargs["vault_token"],
+            self.kwargs["find_duplicates"],
+            self.kwargs["exclude"] if self.kwargs["exclude"] else []
+        )
+
     def run(self, kwargs):
         """
         Module entry point
@@ -547,7 +569,7 @@ class VaultManagerKV:
             elif self.kwargs["count"]:
                 self.run_kv_count()
             elif self.kwargs["find_duplicates"]:
-                self.kv_find_duplicates()
+                self.run_kv_find_duplicates()
             elif self.kwargs["secrets_tree"]:
                 self.kv_secrets_tree()
             elif self.kwargs["generate_tree"]:

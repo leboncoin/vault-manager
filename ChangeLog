@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* add missing param in doctring
 * add default value for base logger in VaultClient
 * shorten some lines
 * add missing return for kv count
