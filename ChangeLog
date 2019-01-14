@@ -1,7 +1,11 @@
 CHANGES
 =======
 
-* kv functions are now indenpendant
+* shorten some lines
+* add missing return for kv count
+* kv delete list instead of read
+* add KV generate tree
+* kv count is now independant
 * base\_logger for module init is not more mandatory
 * run method of modules now takes a dict of args
 * subparser initialization now called directly from VaultManager.py

@@ -13,7 +13,8 @@ class VaultClient:
     dry = None
     skip_tls = None
 
-    def __init__(self, base_logger, dry=False, vault_addr=None, skip_tls=False):
+    def __init__(self, base_logger=None, dry=False, vault_addr=None,
+                 skip_tls=False):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -24,8 +25,12 @@ class VaultClient:
         :param skip_tls: skipping TLS verification
         :type skip_tls: bool
         """
-        self.logger = logging.getLogger(base_logger + "." +
-                                        self.__class__.__name__)
+        if base_logger:
+            self.logger = logging.getLogger(
+                base_logger + "." + self.__class__.__name__
+            )
+        else:
+            self.logger = logging.getLogger()
         self.logger.debug("Dry run: " + str(dry))
         self.dry = dry
         self.logger.debug("Skip TLS: " + str(skip_tls))
