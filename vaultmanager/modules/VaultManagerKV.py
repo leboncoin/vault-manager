@@ -258,27 +258,25 @@ class VaultManagerKV:
                            vault_target_client)
         self.logger.info("Path successfully copied")
 
-    def kv_delete(self):
+    def kv_delete(self, vault_addr, vault_token, paths):
         """
         Method running the delete function of KV module
+
+        :param vault_addr: Vault instance URL
+        :type vault_addr: str
+        :param vault_token: Vault token
+        :type vault_token: str
+        :param paths: Paths to count
+        :type paths: list(str)
+
+        :return: dict of deleted secrets
         """
         self.logger.debug("KV delete starting")
-
-        missing_args = utils.keys_exists_in_dict(
-            self.logger, self.kwargs,
-            [{"key": "vault_addr", "exc": [None, '']},
-             {"key": "vault_token", "exc": [None, False]}]
-        )
-        if len(missing_args):
-            raise ValueError(
-                "Following arguments are missing %s" %
-                [k['key'].replace("_", "-") for k in missing_args]
-            )
         vault_client = self.connect_to_vault(
-            self.kwargs["vault_addr"],
-            self.kwargs["vault_token"]
+            vault_addr,
+            vault_token
         )
-        for to_delete in self.kwargs["delete"]:
+        for to_delete in paths:
             self.logger.info("Deleting all secrets at and under %s at %s" %
                              (to_delete,
                               os.environ["VAULT_ADDR"]))
@@ -291,6 +289,7 @@ class VaultManagerKV:
                                   (len(secrets_to_delete), to_delete))
             else:
                 self.logger.error("No secrets to delete at '%s'" % to_delete)
+        return secrets_to_delete
 
     def kv_count(self, vault_addr, vault_token, paths, excluded=[]):
         """
@@ -563,6 +562,27 @@ class VaultManagerKV:
             self.kwargs["exclude"] if self.kwargs["exclude"] else []
         )
 
+    def run_kv_delete(self):
+        """
+        Prepares a CLI run of kv_delete
+        """
+        self.logger.debug("Preparing run of kv_delete")
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, self.kwargs,
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s" %
+                [k['key'].replace("_", "-") for k in missing_args]
+            )
+        self.kv_delete(
+            self.kwargs["vault_addr"],
+            self.kwargs["vault_token"],
+            self.kwargs["delete"]
+        )
+
     def run(self, kwargs):
         """
         Module entry point
@@ -588,7 +608,7 @@ class VaultManagerKV:
             elif self.kwargs["copy_secret"]:
                 self.kv_copy_secret()
             elif self.kwargs["delete"]:
-                self.kv_delete()
+                self.run_kv_delete()
             elif self.kwargs["count"]:
                 self.run_kv_count()
             elif self.kwargs["find_duplicates"]:
