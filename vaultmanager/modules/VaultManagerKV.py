@@ -28,7 +28,9 @@ class VaultManagerKV:
         """
         self.base_logger = base_logger
         if base_logger:
-            self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
+            self.logger = logging.getLogger(
+                base_logger + "." + self.__class__.__name__
+            )
         else:
             self.logger = logging.getLogger()
         self.dry_run = dry_run
@@ -134,7 +136,8 @@ class VaultManagerKV:
             kv_full[kv] = vault_client.read_secret(kv)
         return kv_full
 
-    def push_to_vault(self, exported_path, exported_kv, target_path, vault_client):
+    def push_to_vault(self, exported_path, exported_kv, target_path,
+                      vault_client):
         """
         Push exported kv to Vault
 
@@ -237,7 +240,8 @@ class VaultManagerKV:
         )
         if not len(exported_kv):
             raise AttributeError("No path to copy")
-        if len(exported_kv) == 1 and list(exported_kv.keys())[0] == self.kwargs["copy_path"][0]:
+        if len(exported_kv) == 1 and \
+                list(exported_kv.keys())[0] == self.kwargs["copy_path"][0]:
             raise AttributeError(
                 "--copy-path should not be used to copy individual secrets."
                 " Use --copy-secret instead"
@@ -396,7 +400,8 @@ class VaultManagerKV:
             kv_full[path] = vault_client.secrets_tree_list(path, excluded)
         self.logger.info(json.dumps(kv_full, indent=4))
 
-    def kv_generate_tree_recursive(self, vault_client, path, depth, count, words):
+    def kv_generate_tree_recursive(self, vault_client, path, depth, count,
+                                   words):
         """
         Recursive function associated with kv_generate_tree
 
@@ -431,7 +436,11 @@ class VaultManagerKV:
             vault_client.write(path + "/" + random.choice(words), secret)
         if depth > 1:
             for i_folders in range(0, folders_count_to_create):
-                self.kv_generate_tree_recursive(vault_client, path + "/" + random.choice(words), depth - 1, count, words)
+                self.kv_generate_tree_recursive(
+                    vault_client,
+                    path + "/" + random.choice(words),
+                    depth - 1, count, words
+                )
 
     def kv_generate_tree(self, vault_addr, vault_token, paths, depth):
         """
@@ -458,7 +467,10 @@ class VaultManagerKV:
         max_count = 5
         self.logger.debug("KV generate tree starting")
         for path in paths:
-            self.kv_generate_tree_recursive(vault_client, path, depth, max_count, words)
+            self.kv_generate_tree_recursive(
+                vault_client, path,
+                depth, max_count, words
+            )
 
     def run_kv_generate_tree(self):
         """
