@@ -1,6 +1,15 @@
 CHANGES
 =======
 
+* kv functions are now indenpendant
+* base\_logger for module init is not more mandatory
+* run method of modules now takes a dict of args
+* subparser initialization now called directly from VaultManager.py
+* arg\_parser no more needed by modules
+* remove display of parsed args
+* remove deprecated 'TODO'
+* add secrets-tree function to KV module
+* add --version argument
 * logging is now on stdout instead of stderr
 * updated changelog
 * add find-duplicates function to kv module
@@ -20,7 +29,7 @@ CHANGES
 * kv delete can now handle several paths
 * kv copy moved to kv copy\_path and add kv\_copy\_secret
 * remove unused methods from VaultClient class
-* KV delete feractored
+* KV delete refactored
 * new logging format
 * add new args to main module
 * remove deprecated documentation
