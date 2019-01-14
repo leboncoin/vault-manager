@@ -1,6 +1,13 @@
 CHANGES
 =======
 
+2.0.0
+-----
+
+* replace env vars in kv module helps
+* fix help in kv module
+* update kv module documentation
+* update general configuration
 * update installation documentation
 * use yaml.safe\_load
 * kv copy path is now independant
