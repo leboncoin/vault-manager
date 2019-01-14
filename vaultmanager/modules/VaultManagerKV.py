@@ -159,20 +159,6 @@ class VaultManagerKV:
             vault_client.write(secret_target_path, exported_kv[secret],
                                hide_all=True)
 
-    def delete_from_vault(self, kv_to_delete, vault_client):
-        """
-        Delete all secrets at and under specified path
-
-        :param kv_to_delete: list of all secrets paths to delete
-        :type kv_to_delete: list
-        :param vault_client: VaultClient instance
-        :type vault_client: VaultClient
-        """
-        self.logger.debug("Deleting secrets from " + os.environ["VAULT_ADDR"])
-        for secret in kv_to_delete:
-            self.logger.info("Deleting '" + secret + "'")
-            vault_client.delete(secret)
-
     def kv_copy_secret(self):
         """
         Method running the copy_secret function of KV module
@@ -290,11 +276,13 @@ class VaultManagerKV:
             self.logger.info("Deleting all secrets at and under %s at %s" %
                              (to_delete,
                               os.environ["VAULT_ADDR"]))
-            exported_kv = self.read_from_vault(to_delete, vault_client)
-            if len(exported_kv):
-                self.delete_from_vault(exported_kv, vault_client)
-                self.logger.debug("Secrets at '%s' successfully deleted" %
-                                  to_delete)
+            secrets_to_delete = vault_client.secrets_tree_list(to_delete)
+            if len(secrets_to_delete):
+                for secret in secrets_to_delete:
+                    self.logger.info("Deleting '" + secret + "'")
+                    vault_client.delete(secret)
+                self.logger.debug("%s secrets at '%s' successfully deleted" %
+                                  (len(secrets_to_delete), to_delete))
             else:
                 self.logger.error("No secrets to delete at '%s'" % to_delete)
 
