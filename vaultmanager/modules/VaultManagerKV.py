@@ -147,6 +147,8 @@ class VaultManagerKV:
         :type target_path: str
         :param exported_kv: Exported KV store
         :type exported_kv: dict
+        :param vault_client: VaultClient instance
+        :type vault_client: VaultClient
         """
         self.logger.debug("Pushing exported kv to Vault")
         for secret in exported_kv:
