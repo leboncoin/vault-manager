@@ -1,8 +1,12 @@
 CHANGES
 =======
 
+* update installation documentation
+* use yaml.safe\_load
+* kv copy path is now independant
+* kv copy secret is now independant
 * kv delete is now independant
-*  kv secrets tree is now independant
+* kv secrets tree is now independant
 * kv find duplicates is now independant
 * add missing param in doctring
 * add default value for base logger in VaultClient

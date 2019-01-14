@@ -60,27 +60,37 @@ pip install dist/vaultmanager-2.0.0.tar.gz
 
 ## How to use it
 
-Once the package installed, you can now use the following command
+Once the vaultmanager installed, you can now use the following command
 
 ```bash
 $> vault-manager -h
-usage: vault-manager [-h] [-v] [-d] {secret,auth,ldap,policies,audit} ...
+usage: vault-manager [-h] [-V] [-v] [-d] [-s] [--vault-addr [VAULT_ADDR]]
+                     [--vault-target-addr [VAULT_TARGET_ADDR]] [--vault-token]
+                     [--vault-target-token] [--vault-config [VAULT_CONFIG]]
+                     {ldap,policies,kv} ...
 
 Vault configuration manager
 
 positional arguments:
-  {secret,auth,ldap,policies,audit}
-    secret              secret management
-    auth                auth management
+  {ldap,policies,kv}
     ldap                ldap management
     policies            policies management
-    audit               audit management
+    kv                  kv management
 
 optional arguments:
   -h, --help            show this help message and exit
+  -V, --version         display version and exit
   -v, --verbose         enable verbose mode
   -d, --dry-run         run in dry mode: No API calls
   -s, --skip-tls        disable TLS verification
+  --vault-addr [VAULT_ADDR]
+                        Vault address (https://<URL>:<PORT>)
+  --vault-target-addr [VAULT_TARGET_ADDR]
+                        Vault target address (https://<URL>:<PORT>)
+  --vault-token         Prompt for Vault token
+  --vault-target-token  Prompt for Vault target token
+  --vault-config [VAULT_CONFIG]
+                        Specify location of vault_config folder
 ```
 
 You can print the help for each module by typing
@@ -91,23 +101,24 @@ vault-manager <module> -h
 
 Each module can be run with `--dry-run`, `--verbose` or `--skip-tls` args
 
+Argument -v, --verbose is quantitative:
+* no `-v` flag will produce a standard output with an `INFO` log level
+* `-v` flag enhance the log output but stays in `INFO` level
+* `-vv` flag enhance the log output comparing to `-v` and change the log level to `DEBUG` 
+
 e.g.
 
 ```bash
-$> vault-manager -vvvv -d -s ldap --list-groups
+$> vault-manager -vv -d -s ldap --list-groups
 ```
-
-**NOTE:** For all modules, the three following environment variables have to be set:
-
-* `VAULT_ADDR` : The Vault API address (e.g.: <https://vault.domain.com:8200>)
-* `VAULT_TOKEN` : A Vault token with needed rights depending on the module you'll be using
-* `VAULT_CONFIG` : The path to the folder containing vault-manager modules configuration files
-
-**NOTE:** vault-manager configuration folder is containing all configuration files used by modules to configure Vault. You can find an exemple of this folder by looking at `vault_config_template`
 
 ## Modules
 
-All vault-manager modules will be detailed in this section
+There's 3 vaultmanager modules:
+* **kv**: K/V store management. Contains different operations on the Vault K/V store
+* **ldap**: LDAP management. Allows to create groups/users Vault policies from a LDAP and configure them into Vault
+* **policies**: Vault policies management. Allows to push/pull policies created with `ldap` module from/to Vault instance
+
 
 ## kv
 
