@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* kv find duplicates is now independant
 * add missing param in doctring
 * add default value for base logger in VaultClient
 * shorten some lines
