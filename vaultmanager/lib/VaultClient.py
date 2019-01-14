@@ -122,7 +122,11 @@ class VaultClient:
             self.logger.debug("Writing at " + path)
         written = None
         if not self.dry_run():
-            written = self.vault_client.write(path, **params)
+            try:
+                written = self.vault_client.write(path, **params)
+            except hvac.v1.exceptions.InvalidRequest as e:
+                raise ValueError("Impossible to write secret: " + str(e))
+                written = None
         return written
 
     def delete(self, path):

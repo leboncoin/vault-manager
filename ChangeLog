@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* kv delete is now independant
 *  kv secrets tree is now independant
 * kv find duplicates is now independant
 * add missing param in doctring
