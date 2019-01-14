@@ -459,11 +459,15 @@ class VaultManagerLDAP:
         if not self.check_args_integrity():
             self.subparser.print_help()
             return False
+        # missing_args = utils.keys_exists_in_dict(
+        #     self.logger, dict(self.kwargs._asdict()),
+        #     [{"key": "vault_addr", "exc": [None, '']},
+        #      {"key": "vault_token", "exc": [None, False]},
+        #      {"key": "vault_config", "exc": [None, False, '']}]
+        # )
         missing_args = utils.keys_exists_in_dict(
             self.logger, dict(self.kwargs._asdict()),
-            [{"key": "vault_addr", "exc": [None, '']},
-             {"key": "vault_token", "exc": [None, False]},
-             {"key": "vault_config", "exc": [None, False, '']}]
+            [{"key": "vault_config", "exc": [None, False, '']}]
         )
         if len(missing_args):
             raise ValueError(
@@ -491,6 +495,17 @@ class VaultManagerLDAP:
         if self.kwargs.list_groups:
             self.ldap_list_groups()
             return True
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, dict(self.kwargs._asdict()),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]},
+             {"key": "vault_config", "exc": [None, False, '']}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s\n" % [
+                    k['key'].replace("_", "-") for k in missing_args]
+            )
         if self.kwargs.create_policies:
             self.ldap_create_policies()
             return True
