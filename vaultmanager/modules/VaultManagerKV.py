@@ -326,6 +326,7 @@ class VaultManagerKV:
         self.logger.debug("\tSecrets count: " + str(total_secrets))
         self.logger.debug("\tValues count: " + str(total_kv))
         self.logger.info(json.dumps(count_dict, indent=4))
+        return count_dict
 
     def kv_find_duplicates(self, kwargs):
         """
