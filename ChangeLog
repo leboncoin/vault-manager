@@ -1,9 +1,19 @@
 CHANGES
 =======
 
+2.0.1
+-----
+
+* release 2.0.1
+* update ldap documentation
+* fix wrong way to read ldap password
+* vault-addr and vault-token not needed by ldap list groups
+* remove display of parsed arguments
+
 2.0.0
 -----
 
+* release 2.0.0
 * replace env vars in kv module helps
 * fix help in kv module
 * update kv module documentation
