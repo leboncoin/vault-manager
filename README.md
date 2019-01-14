@@ -9,7 +9,26 @@ Each module is and should be designed to interact woth a Vault part ('policies' 
 
 ## Installation and usage
 
-### Prequesites
+### Using pip
+
+#### Prerequisite
+
+vault-manager has been developed using python 3.6.5 and works fine with this version.
+Some modules may not work using python 2.
+
+Be sure there's a pypi source containing vaultmanager setup on your computer
+
+#### Installation
+
+```bash
+$> pip install vaultmanager
+```
+
+**And you're now ready to go !**
+
+### From source
+
+#### Prerequisite
 
 vault-manager has been developed using python 3.6.5 and works fine with this version.
 Some modules may not work using python 2.
@@ -34,8 +53,10 @@ this will create the python package in a newly created `dist` folder in the proj
 You can now install the python package
 
 ```bash
-pip install dist/vaultmanager-1.0.9.tar.gz
+pip install dist/vaultmanager-2.0.0.tar.gz
 ```
+
+**And you're now ready to go !**
 
 ## How to use it
 
