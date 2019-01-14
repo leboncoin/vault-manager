@@ -73,33 +73,33 @@ class VaultManagerKV:
         )
         self.subparser.add_argument("--copy-path", nargs=2,
                                     help="""copy kv store from specified path
-                                    COPY_FROM_PATH from $VAULT_ADDR instance
-                                    to $VAULT_TARGET_ADDR at path COPY_TO_PATH.
-                                    $VAULT_TOKEN is used for $VAULT_ADDR and
-                                    $VAULT_TARGET_TOKEN is used for
-                                    $VAULT_TARGET_ADDR""",
+                                    COPY_FROM_PATH from vault-addr instance
+                                    to vault-target-addr at path COPY_TO_PATH.
+                                    vault-token is used for vault-addr and
+                                    vault-target-token is used for
+                                    vault-target-addr""",
                                     metavar=("COPY_FROM_PATH", "COPY_TO_PATH"))
         self.subparser.add_argument("--copy-secret", nargs=2,
-                                    help="""copy one secret from  $VAULT_ADDR
+                                    help="""copy one secret from vault-addr
                                     instance at SECRET_TO_COPY to
-                                    $VAULT_TARGET_ADDR at SECRET_TARGET""",
+                                    vault-target-addr at SECRET_TARGET""",
                                     metavar=("SECRET_TO_COPY", "SECRET_TARGET"))
         self.subparser.add_argument("--delete", nargs='+',
                                     help="""delete PATH_TO_DELETE and all
-                                    secrets under it from $VAULT_ADDR instance.
-                                    $VAULT_TOKEN is used for $VAULT_ADDR""",
+                                    secrets under it from vault-addr instance.
+                                    vault-token is used for vault-addr""",
                                     metavar="PATHS_TO_DELETE")
         self.subparser.add_argument("--count", nargs='+',
-                                    help="""count all secrets on $VAULT_ADDR
+                                    help="""count all secrets on vault-addr
                                     instance under SECRET_PATHS""",
                                     metavar="SECRET_PATHS")
         self.subparser.add_argument("--find-duplicates", nargs='+',
                                     help="""search and display duplicates on
-                                    $VAULT_ADDR instance under SECRET_PATHS""",
+                                    vault-addr instance under SECRET_PATHS""",
                                     metavar="SECRET_PATHS")
         self.subparser.add_argument("--secrets-tree", nargs='+',
                                     help="""display all secrets tree
-                                    (path/to/secret) on $VAULT_ADDR instance
+                                    (path/to/secret) on vault-addr instance
                                      under SECRET_PATHS""",
                                     metavar="SECRET_PATHS")
         self.subparser.add_argument("-e", "--exclude", nargs='+',
