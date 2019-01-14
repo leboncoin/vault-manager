@@ -510,6 +510,9 @@ path "users/{{USER_NAME}}/*" {
 
 **list-groups** will display found LDAP groups
 
+**WARNING:** The env var specified in `ldap.yml` under `ldap.password` must be set.
+It should be the password the LDAP account specified in `ldap.yml` under `ldap.username`.   
+
 #### create-policies
 
 `vault-manager ldap --create-policies`
