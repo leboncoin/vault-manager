@@ -99,7 +99,7 @@ class VaultManagerKV:
                                     metavar="SECRET_PATHS")
         self.subparser.add_argument("--secrets-tree", nargs='+',
                                     help="""display all secrets tree
-                                    (path/to/secret:key) on $VAULT_ADDR instance
+                                    (path/to/secret) on $VAULT_ADDR instance
                                      under SECRET_PATHS""",
                                     metavar="SECRET_PATHS")
         self.subparser.add_argument("-e", "--exclude", nargs='+',
