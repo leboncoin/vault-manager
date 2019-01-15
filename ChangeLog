@@ -1,6 +1,13 @@
 CHANGES
 =======
 
+2.0.2
+-----
+
+* release 2.0.2
+* add sigint catching
+* LDAP password can be read from env or Vault
+
 2.0.1
 -----
 
