@@ -1,4 +1,5 @@
 import os
+import re
 import yaml
 import logging
 from collections import namedtuple
@@ -35,8 +36,6 @@ class VaultManagerLDAP:
         """
         :param base_logger: main class name
         :type base_logger: string
-        :param subparsers: list of all subparsers
-        :type subparsers: argparse.ArgumentParser.add_subparsers()
         """
         self.base_logger = base_logger
         if base_logger:
@@ -177,9 +176,16 @@ class VaultManagerLDAP:
         self.logger.info("Reading LDAP data")
         # base_logger, server, user, password, group_dn, user_dn
         try:
-            ldap_password = self.vault_client.read_string_with_env(
-                self.ldap_conf["ldap"]["password"]
-            )
+            if re.search("^VAULT{{.*}}$", self.ldap_conf["ldap"]["password"]):
+                ldap_password = self.vault_client.read_string_with_secret(
+                    self.ldap_conf["ldap"]["password"]
+                )
+            elif re.search("^ENV{{.*}}$", self.ldap_conf["ldap"]["password"]):
+                ldap_password = self.vault_client.read_string_with_env(
+                    self.ldap_conf["ldap"]["password"]
+                )
+            else:
+                ldap_password = self.ldap_conf["ldap"]["password"]
         except TypeError as e:
             raise Exception("LDAP password does not exists in env at %s" %
                             str(self.ldap_conf["ldap"]["password"]))
@@ -459,12 +465,6 @@ class VaultManagerLDAP:
         if not self.check_args_integrity():
             self.subparser.print_help()
             return False
-        # missing_args = utils.keys_exists_in_dict(
-        #     self.logger, dict(self.kwargs._asdict()),
-        #     [{"key": "vault_addr", "exc": [None, '']},
-        #      {"key": "vault_token", "exc": [None, False]},
-        #      {"key": "vault_config", "exc": [None, False, '']}]
-        # )
         missing_args = utils.keys_exists_in_dict(
             self.logger, dict(self.kwargs._asdict()),
             [{"key": "vault_config", "exc": [None, False, '']}]
@@ -489,11 +489,14 @@ class VaultManagerLDAP:
             dry=self.kwargs.dry_run,
             skip_tls=self.kwargs.skip_tls
         )
-        self.vault_client.authenticate()
+        self.vault_client.authenticate(self.kwargs.vault_token)
         if not self.get_ldap_data():
             return False
         if self.kwargs.list_groups:
             self.ldap_list_groups()
+            return True
+        if self.kwargs.create_policies:
+            self.ldap_create_policies()
             return True
         missing_args = utils.keys_exists_in_dict(
             self.logger, dict(self.kwargs._asdict()),
@@ -506,9 +509,6 @@ class VaultManagerLDAP:
                 "Following arguments are missing %s\n" % [
                     k['key'].replace("_", "-") for k in missing_args]
             )
-        if self.kwargs.create_policies:
-            self.ldap_create_policies()
-            return True
         self.vault_client = self.connect_to_vault(
             self.kwargs.vault_addr,
             self.kwargs.vault_token

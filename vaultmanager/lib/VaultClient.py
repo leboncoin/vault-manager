@@ -54,9 +54,9 @@ class VaultClient:
         if self.dry_run():
             return True
         if self.vault_client.is_authenticated():
-            self.logger.debug("Client is authenticated")
+            self.logger.debug("VaultClient is authenticated")
         else:
-            self.logger.debug("Client is NOT authenticated")
+            self.logger.debug("VaultClient is NOT authenticated")
         return self.vault_client.is_authenticated()
 
     def read(self, path):
@@ -212,7 +212,11 @@ class VaultClient:
         self.logger.debug("Reading secret '" + secret_path + "'")
         secret = {"KEY": "SECRET"}
         if not self.dry_run():
-            secret = self.vault_client.read(secret_path)
+            try:
+                secret = self.vault_client.read(secret_path)
+            except hvac.v1.exceptions.InvalidRequest as e:
+                raise ValueError("Impossible to read secret '%s': %s" %
+                                 (secret_path, str(e)))
             try:
                 return secret["data"]
             except TypeError as e:
