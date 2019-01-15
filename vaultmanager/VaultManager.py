@@ -1,11 +1,13 @@
 import os
 import sys
 import glob
+import signal
 import argparse
 import logging
 import importlib
 import getpass
 import coloredlogs
+import traceback
 try:
     import lib.utils as utils
 except ImportError:
@@ -27,11 +29,32 @@ class VaultManager:
     log_field_styles = None
 
     def __init__(self, module_path):
+        signal.signal(signal.SIGINT, self.signal_handler)
         self.base_logger_name = "VaultManager"
         self.set_logger()
         self.module_path = module_path
         self.logger.debug("Module path is: " + self.module_path)
         self.initialize_arg_parser()
+
+    def signal_handler(self, sig, frame):
+        """
+        Called in case of a manual
+
+        :param sig: Signal received
+        :param frame: Frame object
+        """
+        self.logger.warning("SIGINT received")
+        self.logger.warning("There's no tasks rollback in case of "
+                            "manual interruption")
+        self.logger.warning("Some tasks may stay partially done and depending "
+                            "on the interrupted task, some Vault data can "
+                            "be corrupted")
+        trace = "Interruption point:"
+        for idx, f_summary in enumerate(traceback.extract_stack(frame)):
+            trace += "\n  %s:%s in %s\n\t%s" % (f_summary.filename, f_summary.lineno, f_summary.name, f_summary.line)
+        self.logger.warning(trace)
+        self.logger.warning("Exiting. Return code: 0")
+        sys.exit(0)
 
     def set_logger_styles(self):
         """
