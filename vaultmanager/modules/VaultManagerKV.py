@@ -623,7 +623,7 @@ class VaultManagerKV:
                 "Following arguments are missing %s" %
                 [k['key'].replace("_", "-") for k in missing_args]
             )
-        self.kv_copy_secret(
+        self.kv_copy_path(
             self.kwargs["vault_addr"],
             self.kwargs["vault_token"],
             self.kwargs["vault_target_addr"],
