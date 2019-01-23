@@ -1,6 +1,12 @@
 CHANGES
 =======
 
+2.0.4
+-----
+
+* release 2.0.4
+* kv\_copy\_path is now correctly called
+
 2.0.3
 -----
 
