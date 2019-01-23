@@ -224,6 +224,104 @@ class VaultClient:
                 raise e
         return secret
 
+    def audit_list(self):
+        """
+        List and return audit devices
+        :return: dict
+        """
+        self.logger.debug("Listing audit devices")
+        if not self.dry_run():
+            raw = self.vault_client.list_audit_backends()
+            return raw["data"]
+        return {}
+
+    def auth_list(self):
+        """
+        list and return auth methods
+        :return: dict
+        """
+        self.logger.debug("Listing auth methods")
+        if not self.dry_run():
+            raw = self.vault_client.list_auth_backends()
+            return raw["data"]
+        return {}
+
+    def auth_approle_list(self, mount_point):
+        """
+        Fetch the list of roles at mount point
+        :param mount_point: approle auth mount point
+        :type mount_point: str
+        :return: dict
+        """
+        self.logger.debug("Listing roles at " + mount_point)
+        if not self.dry_run():
+            try:
+                raw_roles = self.vault_client.list_roles(mount_point)
+            except hvac.exceptions.InvalidPath:
+                return []
+            return raw_roles['data']['keys']
+        return {}
+
+    def auth_approle_get(self, role_name, mount_point):
+        """
+        Get role configuration
+        :param role_name: Role name
+        :type role_name: str
+        :param mount_point: approle mount point
+        :type mount_point: str
+        :return: dict
+        """
+        self.logger.debug("Get role configuration for %s at %s" %
+                          (role_name, mount_point))
+        if not self.dry_run():
+            raw_role = self.vault_client.get_role(role_name, mount_point)
+            return raw_role['data']
+        return {
+            'bind_secret_id': True,
+            'bound_cidr_list': [],
+            'local_secret_ids': False,
+            'period': 0,
+            'policies': ['policy'],
+            'secret_id_num_uses': 0,
+            'secret_id_ttl': 0,
+            'token_max_ttl': 0,
+            'token_num_uses': 0,
+            'token_ttl': 0
+        }
+
+    def secret_list(self):
+        """
+        list and return secrets engines
+        :return: dict
+        """
+        self.logger.debug("Listing secrets engines")
+        secrets_engines = {}
+        if not self.dry_run():
+            raw = self.vault_client.list_secret_backends()
+            for key in raw["data"]:
+                if key not in ["cubbyhole/", "identity/", "sys/", "identity/"]:
+                    secrets_engines[key] = raw["data"][key]
+            return secrets_engines
+        return secrets_engines
+
+    def secret_enable(self, secret_type, path, description):
+        """
+        Enable a new secret engine
+        :param secret_type: secret engine type
+        :type secret_type: str
+        :param path: mounting point
+        :type path: str
+        :param description: secret engine description
+        :type description: str
+        """
+        self.logger.debug("Enabling '" + secret_type + "' secret engine")
+        if not self.dry_run():
+            self.vault_client.enable_secret_backend(
+                backend_type=secret_type,
+                mount_point=path,
+                description=description
+            )
+
     """
     Other methods
     """
