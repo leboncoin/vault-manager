@@ -108,13 +108,16 @@ class VaultClient:
 
         :return: dict
         """
+
+        # duplicate params to avoid further mutation
+        copy_params = dict(params)
         if not fields_to_hide and not hide_all:
-            self.logger.debug("Writing " + str(params) + " at " + path)
+            self.logger.debug("Writing " + str(copy_params) + " at " + path)
         elif not hide_all:
             to_display = {}
-            for key in params:
+            for key in copy_params:
                 if key not in fields_to_hide:
-                    to_display[key] = params[key]
+                    to_display[key] = copy_params[key]
                 else:
                     to_display[key] = "HIDDEN"
             self.logger.debug("Writing " + str(to_display) + " at " + path)
@@ -123,7 +126,18 @@ class VaultClient:
         written = None
         if not self.dry_run():
             try:
-                written = self.vault_client.write(path, **params)
+                shadow = ['path', 'wrap_ttl']
+                for s in shadow:
+                    if s in copy_params:
+                        # https://github.com/hvac/hvac/blob/develop/hvac/v1/__init__.py#L215
+                        self.logger.error("A secret named '{}' is in the list to "
+                                        "sync. It could shadow an HVAC param. "
+                                        "Removing it from the list".format(s))
+                        del copy_params[s]
+                if len(copy_params):
+                    written = self.vault_client.write(path, **copy_params)
+                else:
+                    self.logger.debug("Empty secret list. Pass.")
             except hvac.v1.exceptions.InvalidRequest as e:
                 raise ValueError("Impossible to write secret: " + str(e))
                 written = None

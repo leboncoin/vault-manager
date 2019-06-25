@@ -15,6 +15,24 @@ except ImportError:
     import vaultmanager.lib.utils as utils
 
 
+class LoggerWrapper(logging.Logger):
+
+    has_error = False
+
+    def __init__(self, name):
+        logging.Logger.__init__(self, name)
+
+    def error(self, msg, *args, **kwargs):
+        self.has_error = True
+        super(LoggerWrapper, self).error(msg, *args, **kwargs)
+
+    def critical(self, msg, *args, **kwargs):
+        self.has_error = True
+        super(LoggerWrapper, self).critical(msg, *args, **kwargs)
+
+    def hasError(self):
+        return self.has_error
+
 class VaultManager:
     logger = None
     module_path = None
@@ -31,6 +49,7 @@ class VaultManager:
     def __init__(self, module_path):
         signal.signal(signal.SIGINT, self.signal_handler)
         self.base_logger_name = "VaultManager"
+        logging.setLoggerClass(LoggerWrapper)
         self.set_logger()
         self.module_path = module_path
         self.logger.debug("Module path is: " + self.module_path)
@@ -263,6 +282,10 @@ class VaultManager:
                 self.modules[self.parsed_arguments.module_name].run(
                     vars(self.parsed_arguments)
                 )
+                # if logger has logged messages > WARNING
+                if logging.getLogger('VaultManager.VaultClient').hasError():
+                    self.logger.error("Error found during execution"+ "\n")
+                    exit(1)
             except ValueError as e:
                 self.logger.error(str(e) + "\n")
                 self.arg_parser.print_help()
