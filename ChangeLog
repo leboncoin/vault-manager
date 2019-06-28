@@ -1,6 +1,8 @@
 CHANGES
 =======
 
+* only remove / at begining and end of path (secret engines)
+
 v1.1.4
 ------
 

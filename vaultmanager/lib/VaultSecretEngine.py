@@ -27,7 +27,10 @@ class VaultSecretEngine:
         :type secret_config: dict
         """
         self.type = type
-        self.path = path.replace("/", "")
+        # Remove / at begining or end of path
+        if path.startswith("/"): path = path[1:]
+        if path.endswith("/"): path = path[:-1]
+        self.path = path
         self.description = (description if description else "")
         self.tuning = dict()
         self.tuning["force_no_cache"] = False
