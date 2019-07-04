@@ -90,8 +90,13 @@ CHANGES
 * delete deprecated modules
 * add deprecated for modules
 
-v1.1.5
-------
+1.1.6
+-----
+
+* add k8s pki roles creation
+
+1.1.5
+-----
 
 * only remove / at begining and end of path (secret engines)
 

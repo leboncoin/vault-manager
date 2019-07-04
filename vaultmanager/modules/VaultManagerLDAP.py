@@ -2,6 +2,7 @@ import os
 import re
 import yaml
 import logging
+import re
 from collections import namedtuple
 try:
     from lib.VaultClient import VaultClient
@@ -258,6 +259,28 @@ class VaultManagerLDAP:
                         self.logger.info(
                             "Policy for user " + user + " created")
 
+    def create_k8s_roles(self):
+        """
+        Create k8s role for each LDAP user all k8s clusters
+        """
+        self.logger.info("Creating k8s pki roles for every users")
+        clusters = self.conf["k8s"]["clusters"]
+        ft_regex = "|".join(self.conf["k8s"]["allowed_groups"])
+        for user in self.ldap_users:
+            if not len(set(self.conf["groups"]["k8s_groups"]).intersection(
+                    self.ldap_users[user])):
+                continue
+            ou = self.find_ldap_group(user, ft_regex)
+            for cluster in clusters:
+                self.vault_client.write(
+                    "k8s/" + cluster + "/roles/" + user,
+                    {
+                        "allowed_domains": user,
+                        "ou": ou,
+                        "allow_bare_domains": True
+                    }
+                )
+
     def deleting_previous_policies(self):
         """
         Deleting policies of non existing LDAP users
@@ -377,6 +400,22 @@ class VaultManagerLDAP:
         for user in existing_users:
             self.logger.info("Removing user %s from Vault LDAP conf" % user)
             self.vault_client.delete('/auth/ldap/users/' + user)
+        self.logger.info("Creating k8s secrets paths for each user")
+        self.create_k8s_roles()
+
+    def find_ldap_group(self, user, group_regex):
+        """
+        Find a group matching a regex
+        """
+        ft = []
+        for group in self.ldap_users[user]:
+            match = re.match(group_regex, group)
+            if match:
+                ft.extend([g for g in match.groups() if g is not None])
+
+        if len(ft) == 0:
+          return ""
+        return ",".join(ft)
 
     def ldap_create_groups_secrets(self):
         """
