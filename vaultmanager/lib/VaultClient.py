@@ -322,10 +322,9 @@ class VaultClient:
 
     def auth_tune(self, mount_point, default_lease_ttl, max_lease_ttl,
                   description=None, audit_non_hmac_request_keys=None,
-                  audit_non_hmac_response_keys=None, listing_visibility=None,
+                  audit_non_hmac_response_keys=None, listing_visibility="",
                   passthrough_request_headers=None):
         """
-
         :param mount_point: Auth method mount point
         :param default_lease_ttl: Default lease TTL
         :param max_lease_ttl:  Max lease TTL
