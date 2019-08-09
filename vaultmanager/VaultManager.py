@@ -183,7 +183,6 @@ class VaultManager:
             '--vault-target-token', action='store_true',
             help='Prompt for Vault target token'
         )
-
         self.arg_parser.add_argument(
             "--vault-config", nargs='?',
             default=None, const=None,
@@ -240,12 +239,7 @@ class VaultManager:
         self.arg_parser = argparse.ArgumentParser(
             description="Vault configuration manager"
         )
-        self.arg_parser.add_argument('-v', '--verbose', action='count',
-                                     help="enable verbose mode")
-        self.arg_parser.add_argument('-d', '--dry-run', action='store_true',
-                                     help="run in dry mode: No API calls")
-        self.arg_parser.add_argument('-s', '--skip-tls', action='store_true',
-                                     help='disable TLS verification')
+        self.add_arguments()
         subparsers = self.arg_parser.add_subparsers()
         # Fetch the list of all available submodules
         self.modules = dict()

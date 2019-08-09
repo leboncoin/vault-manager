@@ -29,7 +29,7 @@ class VaultManagerAuth:
     local_auth_methods = None
     distant_auth_methods = None
 
-    def __init__(self, base_logger, subparsers):
+    def __init__(self, base_logger=None):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -37,9 +37,11 @@ class VaultManagerAuth:
         :type subparsers: argparse.ArgumentParser.add_subparsers()
         """
         self.base_logger = base_logger
-        self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
+        if base_logger:
+            self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
+        else:
+            self.logger = logging.getLogger()
         self.logger.debug("Initializing VaultManagerAuth")
-        self.initialize_subparser(subparsers)
 
     def initialize_subparser(self, subparsers):
         """
