@@ -240,7 +240,12 @@ class VaultManager:
         self.arg_parser = argparse.ArgumentParser(
             description="Vault configuration manager"
         )
-        self.add_arguments()
+        self.arg_parser.add_argument('-v', '--verbose', action='count',
+                                     help="enable verbose mode")
+        self.arg_parser.add_argument('-d', '--dry-run', action='store_true',
+                                     help="run in dry mode: No API calls")
+        self.arg_parser.add_argument('-s', '--skip-tls', action='store_true',
+                                     help='disable TLS verification')
         subparsers = self.arg_parser.add_subparsers()
         # Fetch the list of all available submodules
         self.modules = dict()
@@ -250,10 +255,7 @@ class VaultManager:
             module_name = os.path.splitext(os.path.basename(file))[0]
             module_short_name = module_name.replace("VaultManager", "").lower()
             try:
-                module = getattr(
-                    importlib.import_module('modules.' + module_name),
-                    module_name
-                )
+                module = getattr(importlib.import_module('modules.' + module_name), module_name)
             except ImportError:
                 module = getattr(importlib.import_module(
                     'vaultmanager.modules.' + module_name),
