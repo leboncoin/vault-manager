@@ -2,12 +2,15 @@ import os
 import logging
 import yaml
 from collections import OrderedDict
+from collections import namedtuple
 try:
     from lib.VaultClient import VaultClient
     from lib.VaultSecretEngine import VaultSecretEngine
+    import lib.utils as utils
 except ImportError:
     from vaultmanager.lib.VaultClient import VaultClient
     from vaultmanager.lib.VaultSecretEngine import VaultSecretEngine
+    import vaultmanager.lib.utils as utils
 
 
 class VaultManagerSecret:
@@ -52,25 +55,17 @@ class VaultManagerSecret:
                                     help="Push secrets engines to Vault")
         self.subparser.set_defaults(module_name=self.module_name)
 
-    def check_env_vars(self):
+    def check_args_integrity(self):
         """
-        Check if all needed env vars are set
-
-        :return: bool
+        Checking provided arguments integrity
         """
-        self.logger.debug("Checking env variables")
-        needed_env_vars = ["VAULT_ADDR", "VAULT_TOKEN", "VAULT_CONFIG"]
-        if not all(env_var in os.environ for env_var in needed_env_vars):
-            self.logger.critical("The following env vars must be set")
-            self.logger.critical(str(needed_env_vars))
+        self.logger.debug("Checking arguments integrity")
+        args_false_count = [self.kwargs.push].count(False)
+        args_none_count = [self.kwargs.push].count(None)
+        no_args_count = args_false_count + args_none_count
+        if no_args_count in [1]:
+            self.logger.critical("you must specify a command")
             return False
-        self.logger.debug("All env vars are set")
-        if not os.path.isdir(os.environ["VAULT_CONFIG"]):
-            self.logger.critical(
-                os.environ["VAULT_CONFIG"] + " is not a valid folder")
-            return False
-        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
-        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
         return True
 
     def read_configuration(self):
@@ -78,7 +73,7 @@ class VaultManagerSecret:
         Read configuration file
         """
         self.logger.debug("Reading configuration")
-        with open(os.path.join(os.environ["VAULT_CONFIG"],
+        with open(os.path.join(self.kwargs.vault_config,
                                "secrets-engines.yml"), 'r') as fd:
             try:
                 self.conf = yaml.load(fd)
@@ -202,55 +197,56 @@ class VaultManagerSecret:
                         self.logger.debug("The secret engine %s will not be tuned" %
                                           local_secret.path)
 
-    def run(self, arg_parser, parsed_args):
+    def secret_push(self):
+        """
+        Push secrets engines configuration to Vault
+        """
+        self.logger.info("Pushing secret engines to Vault")
+        self.read_configuration()
+        self.get_distant_secrets_engines()
+        self.get_local_secrets_engines()
+        for secret_engine in self.local_secrets_engines:
+            if secret_engine in self.distant_secrets_engines:
+                self.logger.debug("Secret engine remaining unchanged " +
+                                  str(secret_engine))
+        self.disable_distant_secrets_engines()
+        self.enable_distant_secrets_engines()
+        self.get_distant_secrets_engines()
+        self.logger.info("Secrets engines successfully pushed to Vault")
+        self.logger.info("Tuning secrets engines")
+        self.find_secrets_engines_to_tune()
+        self.logger.info("Secret engines successfully tuned")
+
+    def run(self, kwargs):
         """
         Module entry point
 
-        :param parsed_args: Arguments parsed fir this module
-        :type parsed_args: argparse.ArgumentParser.parse_args()
-        :param arg_parser: Argument parser
-        :type arg_parser: argparse.ArgumentParser
+        :param kwargs: Arguments parsed
+        :type kwargs: dict
         """
-        self.parsed_args = parsed_args
-        self.arg_parser = arg_parser
-        if not self.check_env_vars():
-            return False
+        # Convert kwargs to an Object with kwargs dict as class vars
+        self.kwargs = namedtuple("KwArgs", kwargs.keys())(*kwargs.values())
         self.logger.debug("Module " + self.module_name + " started")
-        if self.parsed_args.push:
-            self.logger.info("Pushing auth methods to Vault")
-            if not self.check_env_vars():
-                return False
-            self.read_configuration()
-            self.vault_client = VaultClient(
-                self.base_logger,
-                dry=self.parsed_args.dry_run,
-                skip_tls=self.parsed_args.skip_tls
+        if not self.check_args_integrity():
+            self.subparser.print_help()
+            return False
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, dict(self.kwargs._asdict()),
+            [{"key": "vault_addr", "exc": [None, '']},
+            {"key": "vault_token", "exc": [None, False]},
+            {"key": "vault_config", "exc": [None, False, '']}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s\n" % [
+                    k['key'].replace("_", "-") for k in missing_args]
             )
-            self.vault_client.authenticate()
-            self.get_distant_secrets_engines()
-            self.get_local_secrets_engines()
-            for secret_engine in self.local_secrets_engines:
-                if secret_engine in self.distant_secrets_engines:
-                    self.logger.debug("Auth method remaining unchanged " +
-                                      str(secret_engine))
-            self.disable_distant_secrets_engines()
-            self.enable_distant_secrets_engines()
-            self.get_distant_secrets_engines()
-            self.logger.info("Secrets engines successfully pushed to Vault")
-            self.logger.info("Tuning secrets engines")
-            self.find_secrets_engines_to_tune()
-            self.logger.info("Auth methods successfully tuned")
-            # self.logger.info("Setting up auth method specific configuration")
-            # auth_method_module = None
-            # for auth_method in self.local_auth_methods:
-            #     if auth_method.auth_config:
-            #         if auth_method.type == "ldap":
-            #             auth_method_module = AuthMethodLDAP(
-            #                 self.base_logger,
-            #                 auth_method.path,
-            #                 auth_method.auth_config,
-            #                 self.vault_client
-            #             )
-            # if auth_method_module:
-            #     auth_method_module.auth_method_configuration()
-            # self.logger.info("Auth method specific configuration OK")
+        self.vault_client = VaultClient(
+            self.base_logger,
+            vault_addr=self.kwargs.vault_addr,
+            dry=self.kwargs.dry_run,
+            skip_tls=self.kwargs.skip_tls
+        )
+        self.vault_client.authenticate()
+        if self.kwargs.push:
+            self.secret_push()
