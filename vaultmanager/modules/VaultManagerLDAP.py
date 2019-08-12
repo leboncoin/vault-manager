@@ -368,8 +368,8 @@ class VaultManagerLDAP:
             self.vault_client.write(
                 "/auth/ldap/users/" + user,
                 {
-                    "policies": self.list_to_string(policies, separator=""),
-                    "groups": self.list_to_string(groups_of_user, separator="")
+                    "policies": utils.list_to_string(self.logger, policies, separator=""),
+                    "groups": utils.list_to_string(self.logger, groups_of_user, separator="")
                 }
             )
         self.logger.debug("Removing users %s from Vault LDAP conf" %

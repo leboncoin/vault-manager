@@ -61,11 +61,11 @@ class VaultManagerPolicies:
         Checking provided arguments integrity
         """
         self.logger.debug("Checking arguments integrity")
-        if all(self.kwargs.pull, self.kwargs.push):
+        if all([self.kwargs.pull, self.kwargs.push]):
             self.logger.critical("push and pull args cannot "
                                  "be specified at the same time")
             return False
-        elif not any(self.kwargs.pull, self.kwargs.push):
+        elif not any([self.kwargs.pull, self.kwargs.push]):
             self.logger.critical("You must specify pull or push")
             return False
         return True
