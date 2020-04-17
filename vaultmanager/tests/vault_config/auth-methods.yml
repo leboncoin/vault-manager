@@ -1,0 +1,24 @@
+---
+auth-methods:
+  - type: token
+    path: token
+    description: token based credentials
+    tuning:
+      default_lease_ttl: 0
+      max_lease_ttl: 0
+  - type: approle
+    path: approle
+    description: Approle authentication
+    tuning:
+      default_lease_ttl: 43200
+      max_lease_ttl: 0
+    auth_config:
+      app2:
+        role_name: app2
+        token_policies: [service_app2_policy]
+  - type: approle
+    path: approle2
+    description: Approle authentication 2 (to be deleted during tests)
+    tuning:
+      default_lease_ttl: 0
+      max_lease_ttl: 86400

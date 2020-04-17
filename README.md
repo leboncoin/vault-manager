@@ -9,7 +9,26 @@ Each module is and should be designed to interact woth a Vault part ('policies' 
 
 ## Installation and usage
 
-### Prequesites
+### Using pip
+
+#### Prerequisite
+
+vault-manager has been developed using python 3.6.5 and works fine with this version.
+Some modules may not work using python 2.
+
+Be sure there's a pypi source containing vaultmanager setup on your computer
+
+#### Installation
+
+```bash
+$> pip install vaultmanager
+```
+
+**And you're now ready to go !**
+
+### From source
+
+#### Prerequisite
 
 vault-manager has been developed using python 3.6.5 and works fine with this version.
 Some modules may not work using python 2.
@@ -34,32 +53,44 @@ this will create the python package in a newly created `dist` folder in the proj
 You can now install the python package
 
 ```bash
-pip install dist/vaultmanager-1.0.9.tar.gz
+pip install dist/vaultmanager-2.0.0.tar.gz
 ```
+
+**And you're now ready to go !**
 
 ## How to use it
 
-Once the package installed, you can now use the following command
+Once the vaultmanager installed, you can now use the following command
 
 ```bash
 $> vault-manager -h
-usage: vault-manager [-h] [-v] [-d] {secret,auth,ldap,policies,audit} ...
+usage: vault-manager [-h] [-V] [-v] [-d] [-s] [--vault-addr [VAULT_ADDR]]
+                     [--vault-target-addr [VAULT_TARGET_ADDR]] [--vault-token]
+                     [--vault-target-token] [--vault-config [VAULT_CONFIG]]
+                     {ldap,policies,kv} ...
 
 Vault configuration manager
 
 positional arguments:
-  {secret,auth,ldap,policies,audit}
-    secret              secret management
-    auth                auth management
+  {ldap,policies,kv}
     ldap                ldap management
     policies            policies management
-    audit               audit management
+    kv                  kv management
 
 optional arguments:
   -h, --help            show this help message and exit
+  -V, --version         display version and exit
   -v, --verbose         enable verbose mode
   -d, --dry-run         run in dry mode: No API calls
   -s, --skip-tls        disable TLS verification
+  --vault-addr [VAULT_ADDR]
+                        Vault address (https://<URL>:<PORT>)
+  --vault-target-addr [VAULT_TARGET_ADDR]
+                        Vault target address (https://<URL>:<PORT>)
+  --vault-token         Prompt for Vault token
+  --vault-target-token  Prompt for Vault target token
+  --vault-config [VAULT_CONFIG]
+                        Specify location of vault_config folder
 ```
 
 You can print the help for each module by typing
@@ -70,150 +101,39 @@ vault-manager <module> -h
 
 Each module can be run with `--dry-run`, `--verbose` or `--skip-tls` args
 
+Argument -v, --verbose is quantitative:
+* no `-v` flag will produce a standard output with an `INFO` log level
+* `-v` flag enhance the log output but stays in `INFO` level
+* `-vv` flag enhance the log output comparing to `-v` and change the log level to `DEBUG` 
+
 e.g.
 
 ```bash
-$> vault-manager -vvvv -d -s ldap --list-groups
+$> vault-manager -vv -d -s ldap --list-groups
 ```
-
-**NOTE:** For all modules, the three following environment variables have to be set:
-
-* `VAULT_ADDR` : The Vault API address (e.g.: <https://vault.domain.com:8200>)
-* `VAULT_TOKEN` : A Vault token with needed rights depending on the module you'll be using
-* `VAULT_CONFIG` : The path to the folder containing vault-manager modules configuration files
-
-**NOTE:** vault-manager configuration folder is containing all configuration files used by modules to configure Vault. You can find an exemple of this folder by looking at `vault_config_template`
 
 ## Modules
 
-All vault-manager modules will be detailed in this section
+There's 3 vaultmanager modules:
+* **kv**: K/V store management. Contains different operations on the Vault K/V store
+* **ldap**: LDAP management. Allows to create groups/users Vault policies from a LDAP and configure them into Vault
+* **policies**: Vault policies management. Allows to push/pull policies created with `ldap` module from/to Vault instance
 
-## audit
+For each **Needed arguments** sections below, arguments can be specified in two ways:
+* as a command line argument
+* as an environment variable
 
-The **audit** module allows to manage audit devices in Vault
+Here is the correspondence table:
 
-```bash
-$> vault-manager <module> -h
-usage: vault-manager audit [-h] [--push]
+| Command line argument | Environment variable |
+|-----------------------|----------------------|
+| --vault-addr          | VAULT_ADDR           |
+| --vault-target-addr   | VAULT_TARGET_ADDR    |
+| --vault-token         | VAULT_TOKEN          |
+| --vault-target-token  | VAULT_TARGET_TOKEN   |
+| --vault-config        | VAULT_CONFIG         |
 
-optional arguments:
-  -h, --help  show this help message and exit
-  --push      Push audit configuration to Vault
-```
-
-### Configuration file
-
-One configuration file is needed by this module
-
-* `$VAULT_CONFIG/audit-devices.yml`
-
-e.g. **audit-devices.yml**
-
-```yaml
-audit-devices:
-  - type: file
-    path: file_log
-    description: File audit log
-    options:
-      file_path: /var/log/vault_audit.log
-      #log_raw: (optional) default false
-      #hmac_accessor: (optional) default true
-      #mode: (optional) default 0600
-      #format: (optional) default json - (json|jsonx)
-      #prefix: (optional) default empty - prefix_
-```
-
-### arguments
-
-#### push
-
-`vault-manager audit --push`
-
-**push** command will synchronize audit devices in configuration file with the Vault instance. The audit device mount point must be unique and is used as an unique identifier.
-
-**NOTE:** If other parameters than `type` and `path` are modified, the audit device will remains enabled, only changed parameters will be modified.
-
-**WARNING:** Any audit device enabled in Vault but not in the configuration file will be disabled.
-
-## auth
-
-```bash
-$> vault-manager auth -h
-usage: vault-manager auth [-h] [--push]
-
-optional arguments:
-  -h, --help  show this help message and exit
-  --push      Push auth methods to Vault
-```
-
-### Configuration file
-
-One configuration file is needed by this module
-
-* `$VAULT_CONFIG/auth-methods.yml`
-
-e.g. **auth-methods.yml**
-
-```yaml
-auth-methods:
-  - type: token
-    path: token
-    description: token based credentials
-    tuning:
-      default_lease_ttl: 0
-      max_lease_ttl: 0
-  - type: ldap
-    path: ldap
-    description: LDAP authentication
-    tuning:
-      default_lease_ttl: 43200
-      max_lease_ttl: 0
-    auth_config:
-      # All available parameters here
-      # https://www.vaultproject.io/api/auth/ldap/index.html#configure-ldap
-      binddn: cn=<CN>,ou=<OU>,dc=<DC>
-      bindpass: VAULT{{path/to/secret:password}}
-      case_sensitive_names: false
-      deny_null_bind: true
-      discoverdn: false
-      groupattr: cn
-      groupdn: OU=<GROUP>,DC=<DC>
-      groupfilter: (|(memberUid={{.Username}})(member={{.UserDN}})(uniqueMember={{.UserDN}}))
-      insecure_tls: false
-      starttls: false
-      tls_max_version: tls12
-      tls_min_version: tls12
-      url: ldap://<URL>
-      userattr: samaccountname
-      userdn: OU=<OU>,DC=<DC>
-  - type: approle
-    path: approle
-    description: Approle authentication
-    tuning:
-      default_lease_ttl: 43200
-      max_lease_ttl: 0
-    auth_config:
-      concourse:
-        # All available parameters here
-        # https://www.vaultproject.io/api/auth/approle/index.html#create-new-approle
-        role_name: concourse
-        policies: [service_concourse_policy]
-      jenkins:
-        role_name: jenkins
-        policies: [service_jenkins_policy]
-```
-
-### arguments
-
-#### push
-
-`vault-manager auth --push`
-
-**push** command will synchronize authentication methods in configuration file with the Vault instance. The authentication method mount point must be unique and is used as an unique identifier.
-
-**NOTE:** If other parameters than `type` and `path` are modified, the authentication method will remains enabled, only changed parameters will be modified.
-
-**WARNING:** Any authentication method enabled in Vault but not in the configuration file will be disabled.
+If `--vault-token` or `--vault-target` are present, you will be prompted for tokens
 
 ## kv
 
@@ -221,83 +141,252 @@ auth-methods:
 
 ```bash
 $> vault-manager kv -h
-usage: cli.py kv [-h] [--export PATH_TO_EXPORT]
-                 [--copy COPY_FROM_PATH COPY_TO_PATH]
-                 [--delete PATH_TO_DELETE]
+usage: vault-manager kv [-h] [--copy-path COPY_FROM_PATH COPY_TO_PATH]
+                        [--copy-secret SECRET_TO_COPY SECRET_TARGET]
+                        [--delete PATHS_TO_DELETE [PATHS_TO_DELETE ...]]
+                        [--count SECRET_PATHS [SECRET_PATHS ...]]
+                        [--find-duplicates SECRET_PATHS [SECRET_PATHS ...]]
+                        [--secrets-tree SECRET_PATHS [SECRET_PATHS ...]]
+                        [-e SECRET_PATHS [SECRET_PATHS ...]]
+                        [--generate-tree SECRET_PATHS [SECRET_PATHS ...]]
+                        [--depth [DEPTH]]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --export PATH_TO_EXPORT
-                        export kv store from specified path PATH_TO_EXPORT
-                        from $VAULT_ADDR instance to $VAULT_TARGET_ADDR at the
-                        same path. $VAULT_TOKEN is used for $VAULT_ADDR and
-                        $VAULT_TARGET_TOKEN is used for $VAULT_TARGET_ADDR
-  --copy COPY_FROM_PATH COPY_TO_PATH
+  --copy-path COPY_FROM_PATH COPY_TO_PATH
                         copy kv store from specified path COPY_FROM_PATH from
                         $VAULT_ADDR instance to $VAULT_TARGET_ADDR at path
                         COPY_TO_PATH. $VAULT_TOKEN is used for $VAULT_ADDR and
                         $VAULT_TARGET_TOKEN is used for $VAULT_TARGET_ADDR
-  --delete PATH_TO_DELETE
+  --copy-secret SECRET_TO_COPY SECRET_TARGET
+                        copy one secret from $VAULT_ADDR instance at
+                        SECRET_TO_COPY to $VAULT_TARGET_ADDR at SECRET_TARGET
+  --delete PATHS_TO_DELETE [PATHS_TO_DELETE ...]
                         delete PATH_TO_DELETE and all secrets under it from
                         $VAULT_ADDR instance. $VAULT_TOKEN is used for
                         $VAULT_ADDR
+  --count SECRET_PATHS [SECRET_PATHS ...]
+                        count all secrets on $VAULT_ADDR instance under
+                        SECRET_PATHS
+  --find-duplicates SECRET_PATHS [SECRET_PATHS ...]
+                        search and display duplicates on $VAULT_ADDR instance
+                        under SECRET_PATHS
+  --secrets-tree SECRET_PATHS [SECRET_PATHS ...]
+                        display all secrets tree (path/to/secret:key) on
+                        $VAULT_ADDR instance under SECRET_PATHS
+  -e SECRET_PATHS [SECRET_PATHS ...], --exclude SECRET_PATHS [SECRET_PATHS ...]
+                        paths to excludes from count, find-duplicates or
+                        secrets-tree
+  --generate-tree SECRET_PATHS [SECRET_PATHS ...]
+                        paths under which will be generated a random secrets
+                        tree
+  --depth [DEPTH]       depth of tree generated by generate-tree
 ```
 
 ### Configuration file
 
 There is no configuration file needed by this module
 
-### arguments
+#### --copy-path
 
-#### export
+`vault-manager kv --copy-path COPY_FROM_PATH COPY_TO_PATH`
 
-`vault-manager kv --export PATH_TO_EXPORT`
+##### Arguments needed
 
-**export** will export k/v tree under PATH_TO_EXPORT.
+* vault-addr
+* vault-target-addr
+* vault-token
+* vault-target-token
 
-**NOTE:** In addition of VAULT_ADDR and VAULT_TOKEN environment variable, the two following are needed
+**copy-path** will copy k/v tree at COPY_FROM_PATH to COPY_TO_PATH.
 
-* `VAULT_TARGET_ADDR` : Vault URL which will be the target for the exported key/value store
-* `VAULT_TARGET_TOKEN` : Vault token with correct right for `VAULT_TARGET_ADDR`
+**copy-path** should be used only to copy secrets folders. To copy a single secret instead, use **copy-secret**
 
-All secrets under PATH_TO_EXPORT on $VAULT_ADDR will be exported to PATH_TO_EXPORT on $VAULT_TARGET_ADDR.
+All secrets under `COPY_FROM_PATH` on `vault-addr` will be copied to `COPY_TO_PATH` on `vault-target-addr`. (`vault-addr` and `vault-target-addr` can be identical if you want to duplicate a secret tree on the same Vault instance)
 
-**WARNING:** All secrets already existing on $VAULT_TARGET_ADDR will be overwritten
-
-**NOTE:** Secrets already existing on $VAULT_TARGET_ADDR but not existing on $VAULT_ADDR will not be deleted
-
-#### copy
-
-`vault-manager kv --copy COPY_FROM_PATH COPY_TO_PATH`
-
-**copy** will copy k/v tree at COPY_FROM_PATH to COPY_TO_PATH.
-
-**NOTE:** In addition of VAULT_ADDR and VAULT_TOKEN environment variable, the two following are needed
-
-* `VAULT_TARGET_ADDR` : Vault URL which will be the target for the exported key/value store
-* `VAULT_TARGET_TOKEN` : Vault token with correct right for `VAULT_TARGET_ADDR`
-
-All secrets under COPY_FROM_PATH on $VAULT_ADDR will be copied to COPY_TO_PATH on $VAULT_TARGET_ADDR. ($VAULT_ADDR and $VAULT_TARGET_ADDR can be identical if you want to duplicate a secret tree)
-
-e.g.
+##### Example
 
 with the following command
 
-`vault-manager kv --copy path/to/tree path/to/new-tree`
+`vault-manager kv --copy-path path/to/tree path/to/new-tree`
 
 The secret `path/to/tree/this/is/secret` will be copied at `path/to/new-tree/this/is/secret`
 
-**WARNING:** All secrets already existing on $VAULT_TARGET_ADDR will be overwritten
+**WARNING:** All secrets already existing on `vault-target-addr` will be overwritten
 
-**NOTE:** Secrets already existing on $VAULT_TARGET_ADDR but not existing on $VAULT_ADDR will not be deleted
+**NOTE:** Secrets already existing on `vault-target-addr` but not existing on `vault-addr` will not be deleted
 
-#### delete
+#### --copy-secret
 
-`vault-manager kv --delete PATH_TO_DELETE`
+`vault-manager kv --copy-secret SECRET_TO_COPY SECRET_TARGET`
 
-**delete** will delete all secrets at and under PATH_TO_DELETE on $VAULT_ADDR
+##### Arguments needed
 
-**WARNING:** All secrets at and under PATH_TO_DELETE will be deleted and it will not be possible to recover them
+* vault-addr
+* vault-target-addr
+* vault-token
+* vault-target-token
+
+##### Description
+
+**copy-secret** will copy a single secret at `SECRET_TO_COPY` to `SECRET_TARGET`.
+
+**copy-secret** should be used only to copy single secrets. To copy a path instead, use `--copy-path`
+
+All secrets under `COPY_FROM_PATH` on `vault-addr` will be copied to `COPY_TO_PATH` on `vault-target-addr`. (`vault-addr` and `vault-target-addr` can be identical if you want to duplicate a secret tree on the same Vault instance)
+
+##### Example
+
+with the following command
+
+`vault-manager kv --copy-secret this/is/secret this/is/new-secret`
+
+The secret `this/is/secret` will be copied at `this/is/new-secret`
+
+**WARNING:** The secret already existing on `vault-target-addr` will be overwritten
+
+#### --delete
+
+`vault-manager kv --delete PATHS_TO_DELETE [PATHS_TO_DELETE ...]`
+
+##### Arguments needed
+
+* vault-addr
+* vault-target-addr
+* vault-token
+* vault-target-token
+
+##### Description
+
+**delete** will delete all secrets at and under each path of `PATHS_TO_DELETE` on `vault-addr`
+
+**WARNING:** All secrets at and under `PATH_TO_DELETE` will be deleted and it will not be possible to recover them
+
+#### --count
+
+`vault-manager kv --count SECRET_PATHS [SECRET_PATHS ...] --exclude SECRET_PATHS [SECRET_PATHS ...]`
+
+##### Arguments needed
+
+* vault-addr
+* vault-token
+
+##### Description
+
+This command will count all secrets under each path of `SECRET_PATHS`
+
+If one or several path(s) is/are specified after `--exclude`, these paths will be excluded from the count
+
+##### Example
+ 
+```bash
+$> vault-manager kv --count services apps
+{
+    "services": {
+        "secrets_count": 5,
+        "values_count": 6
+    },
+    "apps": {
+        "secrets_count": 5,
+        "values_count": 8
+    }
+}
+```
+
+#### --find-duplicates
+
+`vault-manager kv --find-duplicates SECRET_PATHS [SECRET_PATHS ...] --exclude SECRET_PATHS [SECRET_PATHS ...]`
+
+##### Arguments needed
+
+* vault-addr
+* vault-token
+
+##### Description
+
+This command will look for each secret value under `SECRET_PATHS` and will try to find a duplicated value of this value 
+
+The output is a dictionary of duplicate's groups
+
+##### Example
+
+```bash
+$> vault-manager kv --find-duplicates services apps
+{
+    "0": [
+        "apps/path/to/secret:key",
+        "services/another/path/anothersecret:otherkey"
+    ],
+    "1": [
+        "apps/hello/credentials:username",
+        "apps/accounts/user1:password"
+    ]
+}
+```
+
+This means:
+ * The value of the secret `apps/path/to/secret` at key `key` is the same than the secret `services/another/path/anothersecret` at the key `otherkey`
+ * The value of the secret `apps/hello/credentials` at key `username` is the same than the secret `apps/accounts/user1` at the key `password`
+
+
+#### --secrets-tree
+
+`vault-manager kv --secrets-tree SECRET_PATHS [SECRET_PATHS ...] --exclude SECRET_PATHS [SECRET_PATHS ...]`
+
+##### Arguments needed
+
+* vault-addr
+* vault-token
+
+##### Description
+
+This command will display all secrets paths under `SECRET_PATHS`
+
+The output is a dictionary of lists grouped by root path
+
+##### Example
+
+```bash
+$> vault-manager kv --secrets-tree services apps
+{
+    "services": [
+        "services/prod/ldap/accounts/svc-vault",
+        "services/tree/alsoin/newpath/newsecret",
+        "services/tree/alsoin/services/secret1",
+        "services/tree/directsecret",
+        "services/tree/in/services/secret"
+    ],
+    "apps": [
+        "apps/app1/credentials",
+        "apps/credentials",
+        "apps/app2/username"
+    ]
+}
+```
+
+#### --generate-tree
+
+`vault-manager kv --generate-tree SECRET_PATHS [SECRET_PATHS ...] --depth [DEPTH]`
+
+##### Arguments needed
+
+* vault-addr
+* vault-token
+
+##### Description
+
+This command will generate a random secrets tree under `SECRET_PATHS` using words in `/usr/share/dict/words`
+
+**WARNING**: This command can take a long time if you specify a high depth (>4)
+
+##### Example
+
+```bash
+$> vault-manager kv --generate-tree apps --depth 2
+Will create 1 secrets and 2 folders under 'apps'
+Will create 5 secrets and 0 folders under 'apps/Laburnum'
+Will create 5 secrets and 0 folders under 'apps/valeric'
+```
 
 ## ldap
 
@@ -420,6 +509,9 @@ path "users/{{USER_NAME}}/*" {
 `vault-manager ldap --list-groups`
 
 **list-groups** will display found LDAP groups
+
+**WARNING:** The env var specified in `ldap.yml` under `ldap.password` must be set.
+It should be the password the LDAP account specified in `ldap.yml` under `ldap.username`.   
 
 #### create-policies
 
@@ -568,52 +660,3 @@ service_jenkins_policy
 service_concourse_policy
 root
 ```
-
-## secret
-
-The secret module allows to manage secrets engines in Vault
-
-```bash
-$> vault-manager secret -h
-usage: vault-manager secret [-h] [--push]
-
-optional arguments:
-  -h, --help  show this help message and exit
-  --push      Push secrets engines to Vault
-```
-
-### Configuration file
-
-One configuration file is needed by this module
-
-* `$VAULT_CONFIG/secrets-engines.yml`
-
-e.g. **secrets-engines.yml**
-
-```yaml
-secrets-engines:
-  - type: kv
-    path: services
-    description:
-    tuning:
-      default_lease_ttl: 1800
-      max_lease_ttl: 1800
-  - type: kv
-    path: users
-    description: Users specific folders
-    tuning:
-      default_lease_ttl: 0
-      max_lease_ttl: 0
-```
-
-### arguments
-
-#### push
-
-`vault-manager secret --push`
-
-**push** command will synchronize secrets engines in configuration file with the Vault instance. The secret engine mount point must be unique and is used as an unique identifier.
-
-**NOTE** If other parameters than `type` and `path` are modified, the audit device will remains enabled, only changed parameters will be modified.
-
-**WARNING** Any secret engine enabled in Vault but not in the configuration file will be disabled. All secrets in it will be lost.

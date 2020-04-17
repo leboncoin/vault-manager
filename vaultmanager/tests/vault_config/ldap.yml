@@ -1,0 +1,8 @@
+---
+ldap:
+    server: ldap://0.0.0.0:{{PORT}}
+    username: cn=admin,dc=company,dc=com
+    password: admin
+    kubernetes_group_dn: ou=groups,dc=company,dc=com
+    group_dn: ou=groups,dc=company,dc=com
+    user_dn: ou=users,dc=company,dc=com

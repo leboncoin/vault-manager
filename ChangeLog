@@ -1,8 +1,184 @@
 CHANGES
 =======
 
-v1.1.4
-------
+2.5.2
+-----
+
+* disable audit-devices deletion by default
+
+2.5.1
+-----
+
+* release 2.5.1
+* add CI for build and release
+
+2.5.0
+-----
+
+* disable secrets-engines deletion by default
+* remove wrong log
+
+2.4.0
+-----
+
+* disable auth-methods deletion by default
+
+2.3.0
+-----
+
+* remove kubernetes auth methods management
+
+2.2.2
+-----
+
+* 2.2.2 release
+* update pyyaml version
+* update changelog
+
+2.2.1
+-----
+
+* revert k8s pki related features
+
+2.2.0-1.2.3
+-----------
+
+* use new token parameter names for vault 1.2.3
+
+2.2.0
+-----
+
+* kubernetes sa feature
+* add kubernetes auth method config
+
+2.1.1
+-----
+
+* release 2.1.1
+* update version number
+
+2.1.0
+-----
+
+* release 2.1.0
+* add tox in CI
+* add linter and fix lint issues
+* add auth methods module testing
+* bootstrap LDAP testing
+* add secrets engines module testing
+* add policies module testing
+* add audit module testing
+* add tests for args
+* bootstrap tox testing
+* remove 'deprecated' labels
+* use organization instead of OU
+
+1.1.6
+-----
+
+* add k8s pki roles creation
+* adaptation of backported LDAP and policies module
+* adaptation of backported Auth module
+* adaptation of backported Secret module
+* Backport VaultClient methods
+* First adaptation of backported modules
+* Backport of deprecated configuration modules
+* Handle error bubbling
+* add .tox to .gitignore
+* add methods to VaultClient
+
+2.0.5
+-----
+
+* release 2.0.5
+* update version number
+
+2.0.4
+-----
+
+* release 2.0.4
+* kv\_copy\_path is now correctly called
+* update version number
+
+2.0.2
+-----
+
+* release 2.0.2
+* add sigint catching
+* LDAP password can be read from env or Vault
+
+2.0.1
+-----
+
+* release 2.0.1
+* update ldap documentation
+* fix wrong way to read ldap password
+* vault-addr and vault-token not needed by ldap list groups
+* remove display of parsed arguments
+
+2.0.0
+-----
+
+* release 2.0.0
+* replace env vars in kv module helps
+* fix help in kv module
+* update kv module documentation
+* update general configuration
+* update installation documentation
+* use yaml.safe\_load
+* kv copy path is now independant
+* kv copy secret is now independant
+* kv delete is now independant
+* kv secrets tree is now independant
+* kv find duplicates is now independant
+* add missing param in doctring
+* add default value for base logger in VaultClient
+* shorten some lines
+* add missing return for kv count
+* kv delete list instead of read
+* add KV generate tree
+* kv count is now independant
+* base\_logger for module init is not more mandatory
+* run method of modules now takes a dict of args
+* subparser initialization now called directly from VaultManager.py
+* arg\_parser no more needed by modules
+* remove display of parsed args
+* remove deprecated 'TODO'
+* add secrets-tree function to KV module
+* add --version argument
+* logging is now on stdout instead of stderr
+* updated changelog
+* add find-duplicates function to kv module
+* function count in kv modules now prints a json
+* better logging levels
+* add missing possible arg in KV module
+* update module template
+* move vault-config param from modules to main parser
+* missing LDAP password now correctly handled
+* add param vault-config for LDAP module
+* Policies module refactoring
+* LDAP module refactoring
+* add kv count function
+* remove forgotten reference to export
+* remove unused VaultClient instanciations
+* removed unused kv export
+* kv delete can now handle several paths
+* kv copy moved to kv copy\_path and add kv\_copy\_secret
+* remove unused methods from VaultClient class
+* KV delete refactored
+* new logging format
+* add new args to main module
+* remove deprecated documentation
+* delete deprecated modules
+* add deprecated for modules
+
+1.1.5
+-----
+
+* only remove / at begining and end of path (secret engines)
+
+1.1.4
+-----
 
 * tag release 1.1.4
 * now compatible with Vault 1.0 and revert 07565d

@@ -13,7 +13,8 @@ class VaultClient:
     dry = None
     skip_tls = None
 
-    def __init__(self, base_logger, dry=False, vault_addr=None, skip_tls=False):
+    def __init__(self, base_logger=None, dry=False, vault_addr=None,
+                 skip_tls=False):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -24,8 +25,12 @@ class VaultClient:
         :param skip_tls: skipping TLS verification
         :type skip_tls: bool
         """
-        self.logger = logging.getLogger(base_logger + "." +
-                                        self.__class__.__name__)
+        if base_logger:
+            self.logger = logging.getLogger(
+                base_logger + "." + self.__class__.__name__
+            )
+        else:
+            self.logger = logging.getLogger()
         self.logger.debug("Dry run: " + str(dry))
         self.dry = dry
         self.logger.debug("Skip TLS: " + str(skip_tls))
@@ -36,6 +41,7 @@ class VaultClient:
     """
     API call methods
     """
+
     def is_authenticated(self):
         """
         Check if authenticated against Vault
@@ -45,9 +51,9 @@ class VaultClient:
         if self.dry_run():
             return True
         if self.vault_client.is_authenticated():
-            self.logger.debug("Client is authenticated")
+            self.logger.debug("VaultClient is authenticated")
         else:
-            self.logger.debug("Client is NOT authenticated")
+            self.logger.debug("VaultClient is NOT authenticated")
         return self.vault_client.is_authenticated()
 
     def read(self, path):
@@ -99,13 +105,16 @@ class VaultClient:
 
         :return: dict
         """
+
+        # duplicate params to avoid further mutation
+        copy_params = dict(params)
         if not fields_to_hide and not hide_all:
-            self.logger.debug("Writing " + str(params) + " at " + path)
+            self.logger.debug("Writing " + str(copy_params) + " at " + path)
         elif not hide_all:
             to_display = {}
-            for key in params:
+            for key in copy_params:
                 if key not in fields_to_hide:
-                    to_display[key] = params[key]
+                    to_display[key] = copy_params[key]
                 else:
                     to_display[key] = "HIDDEN"
             self.logger.debug("Writing " + str(to_display) + " at " + path)
@@ -113,7 +122,23 @@ class VaultClient:
             self.logger.debug("Writing at " + path)
         written = None
         if not self.dry_run():
-            written = self.vault_client.write(path, **params)
+            try:
+                shadow = ['path', 'wrap_ttl']
+                for s in shadow:
+                    if s in copy_params:
+                        # https://github.com/hvac/hvac/blob/develop/hvac/v1/__init__.py#L215
+                        self.logger.error(
+                            "A secret named '{}' is in the list to "
+                            "sync. It could shadow an HVAC param. "
+                            "Removing it from the list".format(s))
+                        del copy_params[s]
+                if len(copy_params):
+                    written = self.vault_client.write(path, **copy_params)
+                else:
+                    self.logger.debug("Empty secret list. Pass.")
+            except hvac.v1.exceptions.InvalidRequest as e:
+                raise ValueError("Impossible to write secret: " + str(e))
+                written = None
         return written
 
     def delete(self, path):
@@ -199,7 +224,11 @@ class VaultClient:
         self.logger.debug("Reading secret '" + secret_path + "'")
         secret = {"KEY": "SECRET"}
         if not self.dry_run():
-            secret = self.vault_client.read(secret_path)
+            try:
+                secret = self.vault_client.read(secret_path)
+            except hvac.v1.exceptions.InvalidRequest as e:
+                raise ValueError("Impossible to read secret '%s': %s" %
+                                 (secret_path, str(e)))
             try:
                 return secret["data"]
             except TypeError as e:
@@ -210,7 +239,6 @@ class VaultClient:
     def audit_list(self):
         """
         List and return audit devices
-
         :return: dict
         """
         self.logger.debug("Listing audit devices")
@@ -256,7 +284,6 @@ class VaultClient:
     def auth_list(self):
         """
         list and return auth methods
-
         :return: dict
         """
         self.logger.debug("Listing auth methods")
@@ -297,10 +324,9 @@ class VaultClient:
 
     def auth_tune(self, mount_point, default_lease_ttl, max_lease_ttl,
                   description=None, audit_non_hmac_request_keys=None,
-                  audit_non_hmac_response_keys=None, listing_visibility=None,
+                  audit_non_hmac_response_keys=None, listing_visibility="",
                   passthrough_request_headers=None):
         """
-
         :param mount_point: Auth method mount point
         :param default_lease_ttl: Default lease TTL
         :param max_lease_ttl:  Max lease TTL
@@ -356,12 +382,10 @@ class VaultClient:
     def auth_approle_get(self, role_name, mount_point):
         """
         Get role configuration
-
         :param role_name: Role name
         :type role_name: str
         :param mount_point: approle mount point
         :type mount_point: str
-
         :return: dict
         """
         self.logger.debug("Get role configuration for %s at %s" %
@@ -450,7 +474,6 @@ class VaultClient:
     def secret_enable(self, secret_type, path, description):
         """
         Enable a new secret engine
-
         :param secret_type: secret engine type
         :type secret_type: str
         :param path: mounting point
@@ -482,7 +505,6 @@ class VaultClient:
                     audit_non_hmac_response_keys=None, listing_visibility=None,
                     passthrough_request_headers=None):
         """
-
         :param mount_point: Auth method mount point
         :param default_lease_ttl: Default lease TTL
         :param max_lease_ttl:  Max lease TTL
@@ -521,6 +543,7 @@ class VaultClient:
     """
     Other methods
     """
+
     def dry_run(self):
         """
         Log entry if dry vault_client call
@@ -549,6 +572,7 @@ class VaultClient:
             verify=(not self.skip_tls)
         )
 
+    # TODO: should always receive a Vault token
     def authenticate(self, vault_token=None):
         """
         Vault authentication
@@ -603,6 +627,10 @@ class VaultClient:
         if len(match) == 1:
             self.logger.debug("Env var found: %s" % match[0])
             if not self.dry_run():
+                if match[0] not in os.environ:
+                    self.logger.error(
+                        "'%s' not found in environment" % match[0]
+                    )
                 return os.getenv(match[0], string)
         return string
 
@@ -635,5 +663,58 @@ class VaultClient:
                 if p.endswith("/"):
                     secrets += self.get_secrets_tree_recursive(path + "/" + p)
                 else:
+                    secrets.append(path + "/" + p)
+        return [secret.replace("//", "/") for secret in secrets]
+
+    def secrets_tree_list(self, path, path_excluded=[]):
+        """
+        List all secrets at given path
+
+        :param path: Secrets path to list
+        :type path: str
+        :param path_excluded: List of path to exclude from list
+        :type path_excluded: list
+        :return: list
+        """
+        secrets_list = []
+        secrets_list += self.secrets_tree_list_recursive(path, path_excluded)
+        return secrets_list
+
+    def secrets_tree_list_recursive(self, path, path_excluded):
+        """
+        Recursive method associated to secrets_tree_list
+
+        :param path: Secrets path to list
+        :type path: str
+        :param path_excluded: List of path to exclude from list
+        :type path_excluded: list
+        """
+        secrets = []
+        # if path is in in path_excluded we return
+        for p in path_excluded:
+            if path.startswith(p):
+                return []
+
+        # If path is a folder we continue else id it's a secret,
+        # we return the secret path
+        listed = self.list(path)
+        if len(listed):
+            listed = listed["keys"]
+        else:
+            if len(self.read(path)):
+                self.logger.debug("'%s' is a secret" % path)
+                return [path]
+
+        if len(listed):
+            for p in listed:
+                avoid = False
+                for t_e in path_excluded:
+                    if (path + "/" + p).replace("//", "/").startswith(t_e):
+                        avoid = True
+                if p.endswith("/") and not avoid:
+                    secrets += self.secrets_tree_list_recursive(
+                        path + "/" + p, path_excluded
+                    )
+                elif not avoid:
                     secrets.append(path + "/" + p)
         return [secret.replace("//", "/") for secret in secrets]

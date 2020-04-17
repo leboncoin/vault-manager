@@ -1,0 +1,7 @@
+---
+audit-devices:
+  - type: file
+    path: file_log
+    description: File audit log
+    options:
+      file_path: /tmp/vault_audit.log

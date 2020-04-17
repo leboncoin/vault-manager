@@ -23,6 +23,6 @@ class VaultAuditDevice:
         return self.get_device_unique_id() == other.get_device_unique_id()
 
     def __repr__(self):
-       return ("Path: %s - Type: %s - Desc: %s - Options: %s - Hash : %s" %
-               (self.path, self.type, self.description, str(self.options),
-                self.get_device_unique_id()))
+        return ("Path: %s - Type: %s - Desc: %s - Options: %s - Hash : %s" %
+                (self.path, self.type, self.description, str(self.options),
+                 self.get_device_unique_id()))

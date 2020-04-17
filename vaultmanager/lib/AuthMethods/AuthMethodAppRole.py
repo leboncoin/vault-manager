@@ -41,7 +41,11 @@ class AuthMethodAppRole:
             "secret_id_bound_cidrs": [],
             "token_bound_cidrs": [],
             "enable_local_secret_ids": False,
-            "token_type": ""
+            "token_type": "",
+            "token_explicit_max_ttl": 0,
+            "token_period": 0,
+            "token_policies": [],
+            "token_no_default_policy": False,
         }
 
     def get_distant_approles(self):
@@ -128,4 +132,3 @@ class AuthMethodAppRole:
         self.add_roles()
         self.delete_roles()
         self.tune_roles()
-

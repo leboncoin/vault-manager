@@ -1,0 +1,10 @@
+# This is a cross-platform list tracking distribution packages needed by tests;
+# see https://www.python-ldap.org/en/latest/installing.html#build-prerequisites
+# about python-ldap build prerequisites
+
+libldap2-dev [platform:debian]
+libsasl2-dev [platform:debian]
+slapd [platform:debian]
+ldap-utils [platform:debian]
+lcov [platform:debian]
+valgrind [platform:debian]

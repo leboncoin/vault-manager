@@ -1,9 +1,11 @@
 import os
 import logging
 try:
+    import lib.utils as utils
     from lib.VaultClient import VaultClient
 except ImportError:
     from vaultmanager.lib.VaultClient import VaultClient
+    import vaultmanager.lib.utils as utils
 
 
 class VaultManagerModule:
@@ -44,27 +46,6 @@ class VaultManagerModule:
                                     help="Push to Vault")
         self.subparser.set_defaults(module_name=self.module_name)
 
-    def check_env_vars(self):
-        """
-        Check if all needed env vars are set
-
-        :return: bool
-        """
-        self.logger.debug("Checking env variables")
-        needed_env_vars = ["VAULT_ADDR", "VAULT_TOKEN", "VAULT_CONFIG"]
-        if not all(env_var in os.environ for env_var in needed_env_vars):
-            self.logger.critical("The following env vars must be set")
-            self.logger.critical(str(needed_env_vars))
-            return False
-        self.logger.debug("All env vars are set")
-        if not os.path.isdir(os.environ["VAULT_CONFIG"]):
-            self.logger.critical(
-                os.environ["VAULT_CONFIG"] + " is not a valid folder")
-            return False
-        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
-        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
-        return True
-
     def run(self, arg_parser, parsed_args):
         """
         Module entry point
@@ -75,7 +56,15 @@ class VaultManagerModule:
         """
         self.parsed_args = parsed_args
         self.arg_parser = arg_parser
-        if not self.check_env_vars():
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, vars(self.parsed_args),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]}]
+        )
+        if len(missing_args):
+            self.logger.error("Following arguments are missing %s\n" %
+                              [k['key'].replace("_", "-") for k in
+                               missing_args])
+            self.arg_parser.print_help()
             return False
         self.logger.debug("Module " + self.module_name + " started")
-        print(self.parsed_args)

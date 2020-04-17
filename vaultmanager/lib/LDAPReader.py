@@ -1,3 +1,4 @@
+import re
 import string
 import ldap
 import logging
@@ -16,7 +17,8 @@ class LDAPReader:
     user_dn = None
     ldap_connector = None
 
-    def __init__(self, base_logger, server, user, password, group_dn, user_dn):
+    def __init__(self, base_logger, server, user, password, kubernetes_group_dn,
+                 group_dn, user_dn):
         """
         Instanciate class
 
@@ -40,7 +42,14 @@ class LDAPReader:
         self.ldap_username = user
         self.ldap_password = password
         self.group_dn = group_dn
+        self.kubernetes_group_dn = kubernetes_group_dn
         self.user_dn = user_dn
+        self.logger.debug("LDAP parameters:")
+        self.logger.debug("\tserver: " + self.ldap_server)
+        self.logger.debug("\tusername: " + self.ldap_username)
+        self.logger.debug("\tgroup_dn: " + self.group_dn)
+        self.logger.debug("\tkubernetes_group_dn: " + self.kubernetes_group_dn)
+        self.logger.debug("\tuser_dn: " + self.user_dn)
         self.ldap_connector = ldap.initialize(self.ldap_server)
         self.ldap_connector.protocol_version = 3
         self.ldap_connector.set_option(ldap.OPT_REFERRALS, 0)
@@ -51,12 +60,16 @@ class LDAPReader:
         """
         self.logger.debug("Connecting to LDAP server")
         try:
-            resp_type, resp_data, resp_msgid, resp_ctrls = self.ldap_connector.simple_bind_s(self.ldap_username, self.ldap_password)
+            self.ldap_connector.simple_bind_s(self.ldap_username,
+                                              self.ldap_password)
         except ldap.INVALID_CREDENTIALS as e:
-            self.logger.critical("Your username or password is incorrect: " + str(e))
+            self.logger.critical(
+                "LDAP: Your username or password is incorrect: " + str(e)
+            )
             return False
         except ldap.SERVER_DOWN as e:
-            self.logger.critical("The server appears to be down: " + str(e))
+            self.logger.critical(
+                "LDAP: The server appears to be down: " + str(e))
             return False
         except Exception as e:
             self.logger.critical(str(e))
@@ -73,11 +86,41 @@ class LDAPReader:
         """
         self.logger.debug("Fetching all groups")
         criteria = "(&(objectClass=group))"
-        attributes = ['sAMAccountName']
+        group_attr = "sAMAccountName"
+        attributes = [group_attr]
         try:
-            result = self.ldap_connector.search_s(self.group_dn, ldap.SCOPE_SUBTREE,
-                                                  filterstr=criteria, attrlist=attributes)
-            groups = [entry['sAMAccountName'][0].decode() for dn, entry in result if isinstance(entry, dict)]
+            result = self.ldap_connector.search_s(self.group_dn,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  filterstr=criteria,
+                                                  attrlist=attributes)
+            groups = [entry[group_attr][0].decode() for dn, entry in result if
+                      isinstance(entry, dict)]
+        except Exception as e:
+            self.logger.debug("Impossible to fetch groups :" + str(e))
+            groups = None
+        if groups:
+            self.logger.debug(groups)
+        return groups
+
+    def get_kubernetes_groups(self):
+        """
+        Fetch the list of all groups on the LDAP server
+        Only groups directly affiliated to a user will be fetched
+
+        :return: list(str)
+        """
+        self.logger.debug("Fetching all groups")
+        criteria = "(&(objectClass=group))"
+        group_attr = "sAMAccountName"
+        attributes = [group_attr]
+        try:
+            result = self.ldap_connector.search_s(self.kubernetes_group_dn,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  filterstr=criteria,
+                                                  attrlist=attributes)
+            groups = [entry[group_attr][0].decode() for dn, entry in result if
+                      isinstance(entry, dict)]
+            groups = [g for g in groups if re.match("(team|guild)-", g)]
         except Exception as e:
             self.logger.debug("Impossible to fetch groups :" + str(e))
             groups = None
@@ -98,21 +141,28 @@ class LDAPReader:
         user_key = "sAMAccountName"
         for letter in string.ascii_lowercase:
             self.logger.debug("Checking letter " + letter)
-            criteria = "(&(objectClass=user)(objectClass=person)(" + user_key + "=" + letter + "*))"
+            criteria = "(&(objectClass=user)(objectClass=person)(" + user_key + "=" + letter + "*))"  # noqa
             attributes = [user_key, 'memberOf']
-            result = self.ldap_connector.search_s(self.user_dn, ldap.SCOPE_SUBTREE,
-                                                  filterstr=criteria, attrlist=attributes)
-            users_raw = [entry for dn, entry in result if isinstance(entry, dict)]
+            result = self.ldap_connector.search_s(self.user_dn,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  filterstr=criteria,
+                                                  attrlist=attributes)
+            users_raw = [entry for dn, entry in result if
+                         isinstance(entry, dict)]
             for user_raw in [u for u in users_raw if user_key in u]:
-                if user_raw[user_key][0].decode() in users or 'memberOf' not in user_raw:
-                    self.logger.debug("Duplicated user " + user_raw[user_key][0].decode())
+                if user_raw[user_key][0].decode() in users or 'memberOf' not in user_raw:  # noqa
+                    self.logger.debug(
+                        "Duplicated user " + user_raw[user_key][0].decode())
                     continue
                 users[user_raw[user_key][0].decode()] = []
                 for group_path in [u.decode() for u in user_raw['memberOf']]:
-                    users[user_raw[user_key][0].decode()] += [g for g in groups if g in group_path]
+                    users[user_raw[user_key][0].decode()] += [g for g in groups
+                                                              if
+                                                              g in group_path]
                 if not len(users[user_raw[user_key][0].decode()]):
                     users.pop(user_raw[user_key][0].decode())
-                    self.logger.debug("No groups for " + user_raw[user_key][0].decode() + ". Deleting user")
+                    self.logger.debug("No groups for " + user_raw[user_key][
+                        0].decode() + ". Deleting user")
         self.logger.debug("Users found: ")
         for user in users:
             self.logger.debug(user + " " + str(users[user]))

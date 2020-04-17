@@ -1,0 +1,6 @@
+---
+general:
+  group:
+    default_policy: group_policy.hcl
+  user:
+    default_policy: user_policy.hcl

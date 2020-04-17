@@ -1,0 +1,22 @@
+dn: ou=groups,dc=company,dc=com
+objectclass:organizationalunit
+ou: groups
+description: generic groups branch
+
+dn: cn=people,ou=groups,dc=company,dc=com
+objectclass: groupofnames
+cn: people
+description: people group
+member: cn=user1,ou=users,dc=company,dc=com
+
+dn: ou=users,dc=company,dc=com
+objectclass:organizationalunit
+ou: users
+description: generic users branch
+
+dn: cn=user1,ou=users,dc=company,dc=com
+objectclass: person
+cn: user1
+description: user1entry
+sn: user1
+memberOf: cn=people,ou=groups,dc=company,dc=com

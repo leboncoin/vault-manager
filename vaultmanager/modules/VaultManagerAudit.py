@@ -1,12 +1,15 @@
 import os
 import logging
 import yaml
+from collections import namedtuple
 try:
     from lib.VaultClient import VaultClient
     from lib.VaultAuditDevice import VaultAuditDevice
+    import lib.utils as utils
 except ImportError:
     from vaultmanager.lib.VaultClient import VaultClient
     from vaultmanager.lib.VaultAuditDevice import VaultAuditDevice
+    import vaultmanager.lib.utils as utils
 
 
 class VaultManagerAudit:
@@ -24,7 +27,7 @@ class VaultManagerAudit:
     distant_audit_devices = None
     local_audit_devices = None
 
-    def __init__(self, base_logger, subparsers):
+    def __init__(self, base_logger=None):
         """
         :param base_logger: main class name
         :type base_logger: string
@@ -32,10 +35,11 @@ class VaultManagerAudit:
         :type subparsers: argparse.ArgumentParser.add_subparsers()
         """
         self.base_logger = base_logger
-        self.logger = logging.getLogger(
-            base_logger + "." + self.__class__.__name__)
+        if base_logger:
+            self.logger = logging.getLogger(base_logger + "." + self.__class__.__name__)
+        else:
+            self.logger = logging.getLogger()
         self.logger.debug("Initializing VaultManagerAudit")
-        self.initialize_subparser(subparsers)
 
     def initialize_subparser(self, subparsers):
         """
@@ -60,35 +64,14 @@ class VaultManagerAudit:
         Read configuration file
         """
         self.logger.debug("Reading configuration")
-        with open(os.path.join(os.environ["VAULT_CONFIG"], "audit-devices.yml"),
+        with open(os.path.join(self.kwargs.vault_config, "audit-devices.yml"),
                   'r') as fd:
             try:
-                self.conf = yaml.load(fd)
+                self.conf = yaml.safe_load(fd)
             except yaml.YAMLError as e:
                 self.logger.critical("Impossible to load conf file: " + str(e))
                 return False
         self.logger.debug("Read conf: " + str(self.conf))
-        return True
-
-    def check_env_vars(self):
-        """
-        Check if all needed env vars are set
-
-        :return: bool
-        """
-        self.logger.debug("Checking env variables")
-        needed_env_vars = ["VAULT_ADDR", "VAULT_TOKEN", "VAULT_CONFIG"]
-        if not all(env_var in os.environ for env_var in needed_env_vars):
-            self.logger.critical("The following env vars must be set")
-            self.logger.critical(str(needed_env_vars))
-            return False
-        self.logger.debug("All env vars are set")
-        if not os.path.isdir(os.environ["VAULT_CONFIG"]):
-            self.logger.critical(
-                os.environ["VAULT_CONFIG"] + " is not a valid folder")
-            return False
-        self.logger.info("Vault address: " + os.environ["VAULT_ADDR"])
-        self.logger.info("Vault config folder: " + os.environ["VAULT_CONFIG"])
         return True
 
     def get_distant_audit_devices(self):
@@ -155,33 +138,67 @@ class VaultManagerAudit:
                     audit_device.options
                 )
 
-    def run(self, arg_parser, parsed_args):
+    def check_args_integrity(self):
+        """
+        Checking provided arguments integrity
+        """
+        self.logger.debug("Checking arguments integrity")
+        args_false_count = [self.kwargs.push].count(False)
+        args_none_count = [self.kwargs.push].count(None)
+        no_args_count = args_false_count + args_none_count
+        if no_args_count in [1]:
+            self.logger.critical("you must specify a command")
+            return False
+        return True
+
+    def audit_push(self):
+        """
+        Push secrets engines configuration to Vault
+        """
+        self.logger.info("Pushing audit devices configuration to Vault")
+        self.read_configuration()
+        self.get_distant_audit_devices()
+        self.get_local_audit_devices()
+        for audit_device in self.local_audit_devices:
+            if audit_device in self.distant_audit_devices:
+                self.logger.info("Audit device remaining unchanged " +
+                                 str(audit_device))
+        if "audit-devices-deletion" in self.conf and \
+                self.conf["audit-devices-deletion"]:
+            self.disable_distant_audit_devices()
+        self.enable_distant_audit_devices()
+        self.logger.info("Audit devices successfully pushed to Vault")
+
+    def run(self, kwargs):
         """
         Module entry point
 
-        :param parsed_args: Arguments parsed fir this module
-        :type parsed_args: argparse.ArgumentParser.parse_args()
+        :param kwargs: Arguments parsed
+        :type kwargs: dict
         """
-        self.parsed_args = parsed_args
-        self.arg_parser = arg_parser
+        # Convert kwargs to an Object with kwargs dict as class vars
+        self.kwargs = namedtuple("KwArgs", kwargs.keys())(*kwargs.values())
         self.logger.debug("Module " + self.module_name + " started")
-        if self.parsed_args.push:
-            if not self.check_env_vars():
-                return False
-            self.logger.info("Pushing audit devices configuration to Vault")
-            self.read_configuration()
-            self.vault_client = VaultClient(
-                self.base_logger,
-                dry=self.parsed_args.dry_run,
-                skip_tls=self.parsed_args.skip_tls
+        if not self.check_args_integrity():
+            self.subparser.print_help()
+            return False
+        missing_args = utils.keys_exists_in_dict(
+            self.logger, dict(self.kwargs._asdict()),
+            [{"key": "vault_addr", "exc": [None, '']},
+             {"key": "vault_token", "exc": [None, False]},
+             {"key": "vault_config", "exc": [None, False, '']}]
+        )
+        if len(missing_args):
+            raise ValueError(
+                "Following arguments are missing %s\n" % [
+                    k['key'].replace("_", "-") for k in missing_args]
             )
-            self.vault_client.authenticate()
-            self.get_distant_audit_devices()
-            self.get_local_audit_devices()
-            for audit_device in self.local_audit_devices:
-                if audit_device in self.distant_audit_devices:
-                    self.logger.info("Audit device remaining unchanged " +
-                                     str(audit_device))
-            self.disable_distant_audit_devices()
-            self.enable_distant_audit_devices()
-            self.logger.info("Audit devices successfully pushed to Vault")
+        self.vault_client = VaultClient(
+            self.base_logger,
+            vault_addr=self.kwargs.vault_addr,
+            dry=self.kwargs.dry_run,
+            skip_tls=self.kwargs.skip_tls
+        )
+        self.vault_client.authenticate()
+        if self.kwargs.push:
+            self.audit_push()
