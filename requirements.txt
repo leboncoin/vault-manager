@@ -5,4 +5,4 @@ coloredlogs==10.0
 tox==3.13.2
 tox-docker==1.4.1
 pytest==4.5.0
-Jinja2==2.10.1
+Jinja2==3.1.3
