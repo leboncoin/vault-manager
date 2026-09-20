@@ -7,7 +7,7 @@ import os
 def get_var_or_env(logger, variable, env_variable):
     """
     Return variable if exists else return value from env var env_variable
-    if doesn't exists, return None
+    if doesn't exist, return None
 
     :param logger: logger instance
     :type logger: logger

@@ -50,7 +50,7 @@ class AuthMethodAppRole:
 
     def get_distant_approles(self):
         """
-        Fetch the list roles in Vault
+        Fetch the list of roles in Vault
         """
         self.logger.debug("Fetching approles from Vault")
         distant_approles = self.vault_client.auth_approle_list(self.mount_point)

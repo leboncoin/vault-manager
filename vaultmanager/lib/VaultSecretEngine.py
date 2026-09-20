@@ -13,7 +13,7 @@ class VaultSecretEngine:
 
     def __init__(self, type, path, description, tuning=None, secret_config=None):
         """
-        Instanciate class
+        Instantiate class
 
         :param type: Secret type
         :type type: str
@@ -27,7 +27,7 @@ class VaultSecretEngine:
         :type secret_config: dict
         """
         self.type = type
-        # Remove / at begining or end of path
+        # Remove / at beginning or end of path
         if path.startswith("/"):
             path = path[1:]
         if path.endswith("/"):
