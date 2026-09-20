@@ -45,7 +45,7 @@ class AuthMethodLDAP:
 
     def get_ldap_configuration(self):
         """
-        Fetch the distant authentification configuration
+        Fetch the distant authentication configuration
         """
         self.logger.debug("Fetching distant auth configuration")
         ldap_conf = {}

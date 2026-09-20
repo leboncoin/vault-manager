@@ -20,7 +20,7 @@ class LDAPReader:
     def __init__(self, base_logger, server, user, password, kubernetes_group_dn,
                  group_dn, user_dn):
         """
-        Instanciate class
+        Instantiate class
 
         :param base_logger: parent logger
         :type base_logger: str

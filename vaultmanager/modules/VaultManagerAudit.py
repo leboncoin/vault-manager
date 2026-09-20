@@ -153,7 +153,7 @@ class VaultManagerAudit:
 
     def audit_push(self):
         """
-        Push secrets engines configuration to Vault
+        Push audit devices configuration to Vault
         """
         self.logger.info("Pushing audit devices configuration to Vault")
         self.read_configuration()

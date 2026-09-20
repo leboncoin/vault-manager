@@ -13,7 +13,7 @@ class VaultAuthMethod:
 
     def __init__(self, type, path, description, tuning=None, auth_config=None):
         """
-        Instanciate class
+        Instantiate class
 
         :param type: Authentication type
         :type type: str
@@ -23,7 +23,7 @@ class VaultAuthMethod:
         :type description: str
         :param tuning: Authentication tuning
         :type tuning: dict
-        :param auth_config: Authentification specific configuration
+        :param auth_config: Authentication specific configuration
         :type auth_config: dict
         """
         self.type = type

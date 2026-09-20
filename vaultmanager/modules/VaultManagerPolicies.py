@@ -88,11 +88,11 @@ class VaultManagerPolicies:
                                     " does not match policy name pattern "
                                     "and will not be pulled")
                 continue
-            # create the parent folder policy if doest not exists (user, etc...)
+            # create the parent folder policy if does not exist (user, etc...)
             policy_folder = os.path.join(self.policies_folder, splitted[0])
             if not os.path.isdir(policy_folder):
                 self.logger.debug("Folder " + policy_folder +
-                                  " doest not exists, creating...")
+                                  " does not exist, creating...")
                 os.makedirs(policy_folder)
             # create the policy file
             policy_path = os.path.join(policy_folder, splitted[1] + ".hcl")

@@ -51,7 +51,7 @@ class VaultManagerModule:
         Module entry point
 
         :param arg_parser: Arguments parser instance
-        :param parsed_args: Arguments parsed fir this module
+        :param parsed_args: Arguments parsed for this module
         :type parsed_args: argparse.ArgumentParser.parse_args()
         """
         self.parsed_args = parsed_args
